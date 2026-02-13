@@ -12,7 +12,9 @@ import {
   RotateCcw,
   Pencil,
   Undo2,
-  BookA
+  BookA,
+  Search,
+  Filter
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -65,6 +67,8 @@ const UltraDataTextCorrection = ({
   const [progress, setProgress] = useState(0);
   const [showOnlyChanges, setShowOnlyChanges] = useState(true);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterSource, setFilterSource] = useState<'all' | 'abbreviation' | 'spelling'>('all');
 
   // Colunas de texto para corrigir
   const textColumns = useMemo(() => {
@@ -379,9 +383,24 @@ const UltraDataTextCorrection = ({
     return grouped;
   }, [corrections]);
 
-  const filteredCorrections = showOnlyChanges 
-    ? corrections 
-    : corrections;
+  const filteredCorrections = useMemo(() => {
+    let filtered = corrections;
+    
+    if (filterSource !== 'all') {
+      filtered = filtered.filter(c => c.source === filterSource);
+    }
+    
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(c =>
+        c.original.toLowerCase().includes(term) ||
+        c.corrected.toLowerCase().includes(term) ||
+        c.column.toLowerCase().includes(term)
+      );
+    }
+    
+    return filtered;
+  }, [corrections, searchTerm, filterSource]);
 
   return (
     <div className="space-y-6">
@@ -519,26 +538,57 @@ const UltraDataTextCorrection = ({
             </div>
           </div>
 
-          {/* Toggle para mostrar apenas mudanças */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowOnlyChanges(!showOnlyChanges)}
-            >
-              {showOnlyChanges ? (
-                <Eye className="h-4 w-4 mr-1" />
-              ) : (
-                <EyeOff className="h-4 w-4 mr-1" />
-              )}
-              {showOnlyChanges ? 'Mostrando alterações' : 'Mostrando tudo'}
-            </Button>
+          {/* Busca e filtros */}
+          <div className="flex flex-wrap gap-3">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar no texto original ou corrigido..."
+                className="pl-10"
+              />
+            </div>
+            <div className="flex gap-1">
+              <Button
+                variant={filterSource === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterSource('all')}
+              >
+                Todos
+              </Button>
+              <Button
+                variant={filterSource === 'abbreviation' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterSource('abbreviation')}
+              >
+                Abreviações
+              </Button>
+              <Button
+                variant={filterSource === 'spelling' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterSource('spelling')}
+              >
+                Ortografia
+              </Button>
+            </div>
           </div>
 
           {/* Lista de correções */}
-          <ScrollArea className="h-[400px] border rounded-lg">
+          <ScrollArea className="h-[500px] border rounded-lg">
             <div className="divide-y">
-              {corrections.map((correction, idx) => (
+              {filteredCorrections.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  {searchTerm ? (
+                    <p>Nenhuma correção encontrada para "{searchTerm}".</p>
+                  ) : (
+                    <p>Nenhuma correção nesta categoria.</p>
+                  )}
+                </div>
+              ) : (
+              filteredCorrections.map((correction, idx) => {
+                const realIdx = corrections.indexOf(correction);
+                return (
                 <div 
                   key={`${correction.rowIndex}-${correction.column}-${idx}`}
                   className={`p-4 transition-colors ${
@@ -583,7 +633,7 @@ const UltraDataTextCorrection = ({
                                 size="sm"
                                 variant="ghost"
                                 className="h-6 px-2 text-xs"
-                                onClick={() => handleRestoreOriginalCorrection(idx, correction.corrected)}
+                                onClick={() => handleRestoreOriginalCorrection(realIdx, correction.corrected)}
                               >
                                 <Undo2 className="h-3 w-3 mr-1" />
                                 Restaurar
@@ -591,14 +641,14 @@ const UltraDataTextCorrection = ({
                             </div>
                             <Textarea
                               value={correction.manualEdit ?? correction.corrected}
-                              onChange={(e) => handleManualEditChange(idx, e.target.value)}
+                              onChange={(e) => handleManualEditChange(realIdx, e.target.value)}
                               className="text-sm min-h-[60px] resize-none"
                               autoFocus
                             />
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
-                                onClick={() => handleConfirmEdit(idx)}
+                                onClick={() => handleConfirmEdit(realIdx)}
                                 className="flex-1 bg-success hover:bg-success/90"
                               >
                                 <Check className="h-3 w-3 mr-1" />
@@ -607,7 +657,7 @@ const UltraDataTextCorrection = ({
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleCancelEdit(idx)}
+                                onClick={() => handleCancelEdit(realIdx)}
                               >
                                 Cancelar
                               </Button>
@@ -623,7 +673,7 @@ const UltraDataTextCorrection = ({
                                 size="sm"
                                 variant="ghost"
                                 className="h-5 px-1.5 text-xs text-muted-foreground hover:text-foreground"
-                                onClick={() => handleStartEditing(idx)}
+                                onClick={() => handleStartEditing(realIdx)}
                               >
                                 <Pencil className="h-3 w-3" />
                               </Button>
@@ -661,7 +711,7 @@ const UltraDataTextCorrection = ({
                           size="sm"
                           variant={correction.accepted === true ? 'default' : 'outline'}
                           className={correction.accepted === true ? 'bg-success hover:bg-success/90' : ''}
-                          onClick={() => handleCorrectionDecision(idx, true)}
+                          onClick={() => handleCorrectionDecision(realIdx, true)}
                           title="Aceitar correção"
                         >
                           <Check className="h-4 w-4" />
@@ -669,7 +719,7 @@ const UltraDataTextCorrection = ({
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleStartEditing(idx)}
+                          onClick={() => handleStartEditing(realIdx)}
                           title="Editar manualmente"
                         >
                           <Pencil className="h-4 w-4" />
@@ -677,7 +727,7 @@ const UltraDataTextCorrection = ({
                         <Button
                           size="sm"
                           variant={correction.accepted === false ? 'destructive' : 'outline'}
-                          onClick={() => handleCorrectionDecision(idx, false)}
+                          onClick={() => handleCorrectionDecision(realIdx, false)}
                           title="Rejeitar correção"
                         >
                           <X className="h-4 w-4" />
@@ -686,9 +736,23 @@ const UltraDataTextCorrection = ({
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })
+              )}
             </div>
           </ScrollArea>
+
+          {/* Contador */}
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span>
+              Mostrando {filteredCorrections.length} de {corrections.length} correções
+            </span>
+            {searchTerm && (
+              <Button variant="ghost" size="sm" onClick={() => setSearchTerm('')}>
+                Limpar busca
+              </Button>
+            )}
+          </div>
 
           {/* Botão aplicar */}
           {stats.accepted > 0 && (
