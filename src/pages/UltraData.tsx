@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Upload, Settings2, Sparkles, CheckCircle, SpellCheck, BookA, History, Database, User, LogOut, Camera, Zap } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/toaster';
@@ -75,7 +76,7 @@ const UltraData = () => {
   const [processedProducts, setProcessedProducts] = useState<ProcessedProduct[]>([]);
   
   // UI state
-  const [activeTab, setActiveTab] = useState('upload');
+  const [activeTab, setActiveTab] = useState('upload-history');
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Auto-save session on tab change
@@ -115,7 +116,7 @@ const UltraData = () => {
       }
     }
     
-    setActiveTab('config');
+    setActiveTab('config-corrections');
   };
 
   const handleProcessingComplete = async (products: ProcessedProduct[]) => {
@@ -127,11 +128,11 @@ const UltraData = () => {
         status: 'completed',
         itemsProcessed: products.length,
         processedProducts: products,
-        currentTab: 'validation',
-      });
+      currentTab: 'processing-validation',
+    });
     }
     
-    setActiveTab('validation');
+    setActiveTab('processing-validation');
   };
 
   const handleValidationComplete = (validatedProducts: ProcessedProduct[]) => {
@@ -272,68 +273,36 @@ const UltraData = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 h-auto p-1">
+          <TabsList className="grid w-full grid-cols-3 h-auto p-1">
             <TabsTrigger 
-              value="upload" 
+              value="upload-history" 
               className="flex items-center gap-2 py-3"
             >
               <Upload className="h-4 w-4" />
-              <span className="hidden sm:inline">Upload</span>
+              <span className="hidden sm:inline">Upload / Histórico</span>
             </TabsTrigger>
             <TabsTrigger 
-              value="history" 
-              className="flex items-center gap-2 py-3"
-            >
-              <History className="h-4 w-4" />
-              <span className="hidden sm:inline">Histórico</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="config" 
+              value="config-corrections" 
               disabled={rawData.length === 0}
               className="flex items-center gap-2 py-3"
             >
               <Settings2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Configurar</span>
+              <span className="hidden sm:inline">Config / Correções</span>
             </TabsTrigger>
             <TabsTrigger 
-              value="abbreviations" 
-              className="flex items-center gap-2 py-3"
-            >
-              <BookA className="h-4 w-4" />
-              <span className="hidden sm:inline">Abreviações</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="text-correction" 
-              disabled={!canProceedToProcessing}
-              className="flex items-center gap-2 py-3"
-            >
-              <SpellCheck className="h-4 w-4" />
-              <span className="hidden sm:inline">Corrigir</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="processing" 
+              value="processing-validation" 
               disabled={!canProceedToProcessing}
               className="flex items-center gap-2 py-3"
             >
               <Sparkles className="h-4 w-4" />
-              <span className="hidden sm:inline">Processar IA</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="validation" 
-              disabled={!canProceedToValidation}
-              className="flex items-center gap-2 py-3"
-            >
-              <CheckCircle className="h-4 w-4" />
-              <span className="hidden sm:inline">Validar</span>
+              <span className="hidden sm:inline">Processar / Validar</span>
             </TabsTrigger>
           </TabsList>
 
           <div className="bg-card rounded-2xl shadow-elevated border border-border p-6 md:p-8">
-            <TabsContent value="upload" className="mt-0">
+            <TabsContent value="upload-history" className="mt-0 space-y-8">
               <UltraDataUpload onDataLoaded={handleDataLoaded} />
-            </TabsContent>
-
-            <TabsContent value="history" className="mt-0">
+              <Separator className="my-6" />
               <UltraDataSessionHistory
                 sessions={sessions}
                 loading={sessionsLoading}
@@ -342,7 +311,7 @@ const UltraData = () => {
               />
             </TabsContent>
 
-            <TabsContent value="config" className="mt-0">
+            <TabsContent value="config-corrections" className="mt-0 space-y-8">
               <UltraDataFieldConfig
                 columns={columns}
                 fieldConfigs={fieldConfigs}
@@ -350,17 +319,13 @@ const UltraData = () => {
                 sampleData={rawData.slice(0, 5)}
                 onNext={() => {
                   if (requireAuth()) {
-                    handleTabChange('text-correction');
+                    handleTabChange('processing-validation');
                   }
                 }}
               />
-            </TabsContent>
-
-            <TabsContent value="abbreviations" className="mt-0">
+              <Separator className="my-6" />
               <UltraDataAbbreviations />
-            </TabsContent>
-
-            <TabsContent value="text-correction" className="mt-0">
+              <Separator className="my-6" />
               <UltraDataTextCorrection
                 rawData={rawData}
                 columns={columns}
@@ -369,7 +334,7 @@ const UltraData = () => {
               />
             </TabsContent>
 
-            <TabsContent value="processing" className="mt-0">
+            <TabsContent value="processing-validation" className="mt-0 space-y-8">
               <UltraDataProcessing
                 rawData={rawData}
                 fieldConfigs={fieldConfigs}
@@ -381,14 +346,16 @@ const UltraData = () => {
                 sessionId={currentSessionId}
                 onSessionUpdate={updateSession}
               />
-            </TabsContent>
-
-            <TabsContent value="validation" className="mt-0">
-              <UltraDataValidation
-                processedProducts={processedProducts}
-                columns={columns}
-                onValidationChange={handleValidationComplete}
-              />
+              {canProceedToValidation && (
+                <>
+                  <Separator className="my-6" />
+                  <UltraDataValidation
+                    processedProducts={processedProducts}
+                    columns={columns}
+                    onValidationChange={handleValidationComplete}
+                  />
+                </>
+              )}
             </TabsContent>
           </div>
         </Tabs>
