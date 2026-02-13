@@ -1,0 +1,30 @@
+{
+  "search_templates": {
+    "default": "{productName} produto foto",
+    "with_brand": "{productName} {brand} foto produto",
+    "with_category": "{productName} {category} foto",
+    "detailed": "{productName} {brand} {category} imagem produto e-commerce"
+  },
+  "generation_styles": {
+    "catalog": {
+      "label": "Catálogo",
+      "description": "Fundo branco, iluminação profissional de estúdio",
+      "prompt_suffix": "professional product photography, clean white background, studio lighting, e-commerce catalog style"
+    },
+    "lifestyle": {
+      "label": "Lifestyle",
+      "description": "Cenário natural, iluminação quente",
+      "prompt_suffix": "lifestyle product photography, natural setting, warm lighting, aspirational"
+    },
+    "minimal": {
+      "label": "Minimalista",
+      "description": "Fundo puro, sombras suaves",
+      "prompt_suffix": "minimalist product shot, pure white background, soft shadows, clean and modern"
+    }
+  },
+  "supported_formats": ["webp", "png", "jpg"],
+  "default_dimensions": {
+    "width": 1080,
+    "height": 1080
+  }
+}

@@ -1,0 +1,289 @@
+// src/components/Dashboard.tsx
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle, CheckCircle, BarChart3, Package, Layers, Hash } from 'lucide-react';
+
+// Interface para os dados do produto
+interface Product {
+  id: string;
+  sku: string;
+  nome: string;
+  categoria?: string;
+  marca?: string;
+  [key: string]: any;
+}
+
+// Interface para as props do Dashboard
+interface DashboardProps {
+  data: Product[];
+}
+
+export function Dashboard({ data }: DashboardProps) {
+  const [stats, setStats] = useState({
+    totalItems: 0,
+    uniqueCategories: 0,
+    uniqueSkus: 0,
+    duplicateSkus: 0,
+    emptyCategories: 0,
+  });
+
+  const [categoryAnalysis, setCategoryAnalysis] = useState<Array<{
+    category: string;
+    count: number;
+    examples: string[];
+  }>>([]);
+
+  const [duplicates, setDuplicates] = useState<Product[]>([]);
+
+  // Analisar dados quando eles mudarem
+  useEffect(() => {
+    if (!data || data.length === 0) return;
+
+    // 1. Estatísticas básicas
+    const totalItems = data.length;
+    const categories = new Set(data.filter(item => item.categoria).map(item => item.categoria as string));
+    const skus = data.map(item => item.sku);
+    const uniqueSkus = new Set(skus).size;
+    const duplicateSkus = totalItems - uniqueSkus;
+    
+    // Encontrar duplicados por SKU
+    const skuMap = new Map<string, Product[]>();
+    data.forEach(item => {
+      if (!skuMap.has(item.sku)) skuMap.set(item.sku, []);
+      skuMap.get(item.sku)!.push(item);
+    });
+    
+    const duplicateItems = Array.from(skuMap.entries())
+      .filter(([_, items]) => items.length > 1)
+      .flatMap(([_, items]) => items);
+
+    // 2. Análise de categorias
+    const categoryCount: Record<string, number> = {};
+    const categoryExamples: Record<string, string[]> = {};
+    
+    data.forEach(item => {
+      const cat = item.categoria || 'SEM CATEGORIA';
+      if (!categoryCount[cat]) categoryCount[cat] = 0;
+      categoryCount[cat]++;
+      
+      if (!categoryExamples[cat]) categoryExamples[cat] = [];
+      if (categoryExamples[cat].length < 3 && item.nome) {
+        categoryExamples[cat].push(item.nome);
+      }
+    });
+
+    const categoryAnalysis = Object.entries(categoryCount)
+      .map(([category, count]) => ({
+        category,
+        count,
+        examples: categoryExamples[category] || []
+      }))
+      .sort((a, b) => b.count - a.count); // Ordenar por frequência
+
+    // 3. Atualizar estado
+    setStats({
+      totalItems,
+      uniqueCategories: categories.size,
+      uniqueSkus,
+      duplicateSkus,
+      emptyCategories: data.filter(item => !item.categoria).length,
+    });
+    
+    setCategoryAnalysis(categoryAnalysis);
+    setDuplicates(duplicateItems);
+  }, [data]);
+
+  if (!data || data.length === 0) {
+    return (
+      <Alert className="mb-6">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertDescription>
+          Nenhum dado carregado. Faça upload de uma planilha para ver o dashboard.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">📊 Dashboard ULTRADATA</h1>
+        <p className="text-muted-foreground">
+          Análise completa da sua base de produtos
+        </p>
+      </div>
+
+      {/* Cards de Métricas */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Itens</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalItems}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.uniqueSkus} SKUs únicos
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Categorias</CardTitle>
+            <Layers className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.uniqueCategories}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.emptyCategories} sem categoria
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Duplicidades</CardTitle>
+            <Hash className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.duplicateSkus}</div>
+            <p className="text-xs text-muted-foreground">
+              {duplicates.length} itens duplicados
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Taxa de Preenchimento</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {((stats.totalItems - stats.emptyCategories) / stats.totalItems * 100).toFixed(1)}%
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Categorias preenchidas
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tabs para Análises Detalhadas */}
+      <Tabs defaultValue="categories" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="categories">📂 Análise de Categorias</TabsTrigger>
+          <TabsTrigger value="duplicates">🔍 Duplicidades</TabsTrigger>
+          <TabsTrigger value="quality">📈 Qualidade dos Dados</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="categories" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Distribuição de Categorias</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead>Quantidade</TableHead>
+                    <TableHead>% do Total</TableHead>
+                    <TableHead>Exemplos</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {categoryAnalysis.slice(0, 20).map((item) => (
+                    <TableRow key={item.category}>
+                      <TableCell className="font-medium">{item.category}</TableCell>
+                      <TableCell>{item.count}</TableCell>
+                      <TableCell>{((item.count / stats.totalItems) * 100).toFixed(1)}%</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {item.examples.slice(0, 2).join(', ')}
+                        {item.examples.length > 2 && '...'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="duplicates" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Itens com Possível Duplicidade</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {duplicates.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead>Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {duplicates.slice(0, 10).map((item, index) => (
+                      <TableRow key={`${item.sku}-${index}`}>
+                        <TableCell className="font-medium">{item.sku}</TableCell>
+                        <TableCell>{item.nome}</TableCell>
+                        <TableCell>{item.categoria || '—'}</TableCell>
+                        <TableCell>
+                          <button className="text-sm text-blue-600 hover:underline">
+                            Ver detalhes
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <Alert>
+                  <CheckCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Nenhuma duplicidade encontrada por SKU.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Recomendações Baseadas na Análise */}
+      <Card className="border-l-4 border-l-blue-500">
+        <CardHeader>
+          <CardTitle>💡 Recomendações para sua Base</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {stats.emptyCategories > 0 && (
+            <p className="text-sm">
+              • <strong>{stats.emptyCategories} itens</strong> estão sem categoria.
+              Considere usar a IA para sugerir categorias automaticamente.
+            </p>
+          )}
+          {stats.duplicateSkus > 0 && (
+            <p className="text-sm">
+              • <strong>{stats.duplicateSkus} SKUs duplicados</strong> detectados.
+              Revise antes de exportar para o Bling.
+            </p>
+          )}
+          {categoryAnalysis.length > 50 && (
+            <p className="text-sm">
+              • Muitas categorias ({categoryAnalysis.length}). Considere consolidar
+              categorias similares (ex: "ELETR." e "ELETRÔNICOS").
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

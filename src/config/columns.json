@@ -1,0 +1,98 @@
+{
+  "bling_54": {
+    "meta": {
+      "id": "bling-54",
+      "name": "ERP BLING (54 colunas)",
+      "description": "Configuração otimizada para planilhas exportadas do Bling com proteção de campos financeiros.",
+      "version": "1.0.0"
+    },
+    "identifiers": {
+      "ID": { "action": "ignore", "isProtected": true },
+      "Código": { "action": "ignore", "isProtected": true },
+      "Código Produto": { "action": "ignore", "isProtected": true },
+      "SKU": { "action": "ignore", "isProtected": true },
+      "Código de Barras": { "action": "ignore", "isProtected": true },
+      "GTIN": { "action": "ignore", "isProtected": true },
+      "EAN": { "action": "ignore", "isProtected": true },
+      "NCM": { "action": "ignore", "isProtected": true },
+      "CEST": { "action": "ignore", "isProtected": true }
+    },
+    "text_fields": {
+      "Nome": { "action": "analyze", "isProtected": false },
+      "Nome Produto": { "action": "analyze", "isProtected": false },
+      "Título": { "action": "analyze", "isProtected": false },
+      "Descrição": { "action": "analyze", "isProtected": false },
+      "Descrição Curta": { "action": "analyze", "isProtected": false },
+      "Descrição Longa": { "action": "analyze", "isProtected": false },
+      "Descrição Completa": { "action": "analyze", "isProtected": false },
+      "Descrição do Produto": { "action": "analyze", "isProtected": false },
+      "Descrição complementar": { "action": "analyze", "isProtected": false }
+    },
+    "classification": {
+      "Categoria": { "action": "analyze", "isProtected": false },
+      "Categoria do Produto": { "action": "analyze", "isProtected": false },
+      "Subcategoria": { "action": "analyze", "isProtected": false },
+      "Marca": { "action": "analyze", "isProtected": false },
+      "Fabricante": { "action": "analyze", "isProtected": false }
+    },
+    "attributes": {
+      "Cor": { "action": "analyze", "isProtected": false },
+      "Tamanho": { "action": "analyze", "isProtected": false },
+      "Material": { "action": "analyze", "isProtected": false },
+      "Modelo": { "action": "analyze", "isProtected": false },
+      "Tipo": { "action": "analyze", "isProtected": false },
+      "Características": { "action": "analyze", "isProtected": false },
+      "Especificações": { "action": "analyze", "isProtected": false }
+    },
+    "seo": {
+      "Palavras-chave": { "action": "analyze", "isProtected": false },
+      "Tags": { "action": "analyze", "isProtected": false },
+      "Meta Title": { "action": "analyze", "isProtected": false },
+      "Meta Description": { "action": "analyze", "isProtected": false },
+      "Grupo de Tags/Tags": { "action": "analyze", "isProtected": false }
+    },
+    "prices": {
+      "Preço": { "action": "ignore", "isProtected": true },
+      "Preço de Venda": { "action": "ignore", "isProtected": true },
+      "Preço Venda": { "action": "ignore", "isProtected": true },
+      "Preço de Custo": { "action": "ignore", "isProtected": true },
+      "Preço Custo": { "action": "ignore", "isProtected": true },
+      "Preço promocional": { "action": "ignore", "isProtected": true },
+      "Custo": { "action": "ignore", "isProtected": true },
+      "Valor": { "action": "ignore", "isProtected": true }
+    },
+    "inventory": {
+      "Estoque": { "action": "ignore", "isProtected": true },
+      "Estoque Atual": { "action": "ignore", "isProtected": true },
+      "Estoque mínimo": { "action": "ignore", "isProtected": true },
+      "Estoque máximo": { "action": "ignore", "isProtected": true },
+      "Quantidade": { "action": "ignore", "isProtected": true }
+    },
+    "dimensions": {
+      "Peso": { "action": "ignore", "isProtected": true },
+      "Peso Bruto": { "action": "ignore", "isProtected": true },
+      "Peso Líquido": { "action": "ignore", "isProtected": true },
+      "Largura": { "action": "ignore", "isProtected": true },
+      "Altura": { "action": "ignore", "isProtected": true },
+      "Profundidade": { "action": "ignore", "isProtected": true },
+      "Comprimento": { "action": "ignore", "isProtected": true },
+      "Unidade de Medida": { "action": "ignore", "isProtected": true }
+    },
+    "images": {
+      "URL Imagens Externas": { "action": "ignore", "isProtected": false },
+      "Imagem": { "action": "ignore", "isProtected": false },
+      "Imagens": { "action": "ignore", "isProtected": false }
+    },
+    "status": {
+      "Situação": { "action": "ignore", "isProtected": false },
+      "Status": { "action": "ignore", "isProtected": false },
+      "Ativo": { "action": "ignore", "isProtected": false }
+    },
+    "observations": {
+      "Observações": { "action": "analyze", "isProtected": false },
+      "Observação": { "action": "analyze", "isProtected": false },
+      "Obs": { "action": "analyze", "isProtected": false }
+    }
+  },
+  "protected_column_regex": "preço|preco|price|valor|custo|cost|estoque|stock|quantidade|qtde?|peso|weight|largura|altura|profundidade|comprimento|gtin|ean|ncm|cest"
+}

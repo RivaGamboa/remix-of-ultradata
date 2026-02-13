@@ -1,0 +1,67 @@
+{
+  "measures": {
+    "cm": "centímetro",
+    "kg": "quilograma",
+    "gr": "grama",
+    "ml": "mililitro",
+    "lt": "litro",
+    "mt": "metro",
+    "mm": "milímetro"
+  },
+  "units": {
+    "un": "unidade",
+    "und": "unidade",
+    "pc": "peça",
+    "pç": "peça",
+    "pçs": "peças",
+    "pcs": "peças",
+    "cx": "caixa",
+    "pct": "pacote",
+    "kit": "kit",
+    "jg": "jogo",
+    "par": "par",
+    "dz": "dúzia"
+  },
+  "sizes": {
+    "tam": "tamanho",
+    "tam-p": "tamanho pequeno",
+    "tam-m": "tamanho médio",
+    "tam-g": "tamanho grande",
+    "tam-gg": "tamanho extra grande",
+    "tam-xg": "tamanho extra grande",
+    "tam-pp": "tamanho extra pequeno",
+    "med": "médio",
+    "peq": "pequeno",
+    "grd": "grande"
+  },
+  "prepositions": {
+    "c/": "com",
+    "s/": "sem",
+    "p/": "para"
+  },
+  "materials": {
+    "inox": "aço inoxidável",
+    "alum": "alumínio",
+    "mad": "madeira",
+    "plast": "plástico",
+    "borr": "borracha",
+    "tec": "tecido",
+    "sint": "sintético",
+    "nat": "natural"
+  },
+  "general": {
+    "qnt": "quantidade",
+    "qtd": "quantidade",
+    "ref": "referência",
+    "mod": "modelo",
+    "cor": "cor",
+    "fab": "fabricante",
+    "orig": "original",
+    "imp": "importado",
+    "nac": "nacional",
+    "aut": "autêntico",
+    "gen": "genérico",
+    "univ": "universal",
+    "compat": "compatível"
+  }
+}
