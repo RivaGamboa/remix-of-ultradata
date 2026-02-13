@@ -41,16 +41,24 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
-    const { error } = await signInWithGoogle();
-    if (error) {
+    try {
+      const { error } = await signInWithGoogle();
+      if (error) {
+        toast({
+          title: 'Erro ao entrar com Google',
+          description: error.message,
+          variant: 'destructive'
+        });
+      }
+    } catch (err) {
       toast({
         title: 'Erro ao entrar com Google',
-        description: error.message,
+        description: 'Ocorreu um erro inesperado. Tente novamente.',
         variant: 'destructive'
       });
+    } finally {
       setGoogleLoading(false);
     }
-    // Don't close modal - OAuth will redirect
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
