@@ -123,7 +123,8 @@ Deno.serve(async (req) => {
     // 1. Generate authorization URL (no auth needed)
     if (action === "authorize") {
       const { clientId } = getBlingCredentials();
-      const redirectUri = url.searchParams.get("redirect_uri");
+      const fixedRedirectUri = Deno.env.get("BLING_REDIRECT_URI");
+      const redirectUri = url.searchParams.get("redirect_uri") || fixedRedirectUri;
       const state = url.searchParams.get("state") || "";
 
       if (!redirectUri) {

@@ -61,17 +61,28 @@ export function useBlingAuth() {
     checkStatus();
   }, [checkStatus]);
 
+  const fetchBlingConfig = useCallback(async () => {
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bling-config`,
+      { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, 'Content-Type': 'application/json' } }
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Falha ao buscar configuração Bling');
+    return data as { clientId: string; redirectUri: string };
+  }, []);
+
   const startAuth = useCallback(async () => {
-    const redirectUri = `${window.location.origin}/bling/callback`;
+    const config = await fetchBlingConfig();
     const state = crypto.randomUUID();
     sessionStorage.setItem('bling_oauth_state', state);
+    sessionStorage.setItem('bling_redirect_uri', config.redirectUri);
 
     const data = await callBlingOAuth('authorize', {
-      params: { redirect_uri: redirectUri, state },
+      params: { redirect_uri: config.redirectUri, state },
     });
 
     window.location.href = data.url;
-  }, [callBlingOAuth]);
+  }, [callBlingOAuth, fetchBlingConfig]);
 
   const handleCallback = useCallback(
     async (code: string, state: string) => {
@@ -79,7 +90,9 @@ export function useBlingAuth() {
       if (state !== savedState) throw new Error('State mismatch');
       sessionStorage.removeItem('bling_oauth_state');
 
-      const redirectUri = `${window.location.origin}/bling/callback`;
+      const redirectUri = sessionStorage.getItem('bling_redirect_uri') || `${window.location.origin}/bling/callback`;
+      sessionStorage.removeItem('bling_redirect_uri');
+
       await callBlingOAuth('callback', {
         method: 'POST',
         body: { code, redirect_uri: redirectUri },
