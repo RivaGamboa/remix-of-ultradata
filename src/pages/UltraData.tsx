@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Upload, Settings2, Sparkles, CheckCircle, SpellCheck, BookA, History, Database, User, LogOut, Camera, Zap } from 'lucide-react';
+import { Upload, Settings2, Sparkles, CheckCircle, SpellCheck, BookA, History, Database, User, LogOut, Camera, Zap, Cable } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -223,6 +223,12 @@ const UltraData = () => {
                   <Link to="/profile" className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                     <User className="h-4 w-4" />
                     <span>{user.email}</span>
+                  </Link>
+                  <Link to="/conexoes">
+                    <Button variant="outline" size="sm">
+                      <Cable className="h-4 w-4" />
+                      <span className="hidden sm:inline ml-2">Conexões</span>
+                    </Button>
                   </Link>
                   <Link to="/history">
                     <Button variant="outline" size="sm">
