@@ -30,7 +30,7 @@ const BlingCallback = () => {
     handleCallback(code, state)
       .then(() => {
         setStatus('success');
-        setTimeout(() => navigate('/'), 2000);
+        setTimeout(() => navigate('/conexoes'), 2000);
       })
       .catch((err) => {
         setStatus('error');
@@ -59,7 +59,7 @@ const BlingCallback = () => {
             <XCircle className="h-12 w-12 text-destructive mx-auto" />
             <p className="text-foreground font-medium">Erro ao conectar</p>
             <p className="text-sm text-muted-foreground">{errorMsg}</p>
-            <button onClick={() => navigate('/')} className="text-primary underline text-sm">
+            <button onClick={() => navigate('/conexoes')} className="text-primary underline text-sm">
               Voltar ao início
             </button>
           </>

@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import UltraData from "./pages/UltraData";
 import BlingCallback from "./pages/BlingCallback";
 import Conexoes from "./pages/Conexoes";
+import Login from "./pages/Login";
 
 const queryClient = new QueryClient();
 
@@ -22,8 +23,9 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<UltraData />} />
+            <Route path="/" element={<Login />} />
             <Route path="/conexoes" element={<Conexoes />} />
+            <Route path="/ultradata" element={<UltraData />} />
             <Route path="/history" element={<History />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/bling/callback" element={<BlingCallback />} />
