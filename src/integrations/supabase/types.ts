@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      bling_connections: {
+        Row: {
+          access_token: string
+          bling_account_name: string | null
+          created_at: string | null
+          expires_at: string
+          id: string
+          refresh_token: string
+          scope: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          bling_account_name?: string | null
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          refresh_token: string
+          scope?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          bling_account_name?: string | null
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          refresh_token?: string
+          scope?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       bling_tokens: {
         Row: {
           access_token: string

@@ -10,6 +10,7 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import UltraData from "./pages/UltraData";
 import BlingCallback from "./pages/BlingCallback";
+import Conexoes from "./pages/Conexoes";
 
 const queryClient = new QueryClient();
 
@@ -22,9 +23,11 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<UltraData />} />
+            <Route path="/conexoes" element={<Conexoes />} />
             <Route path="/history" element={<History />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/bling/callback" element={<BlingCallback />} />
+            <Route path="/dashboard-em-breve" element={<NotFound />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
