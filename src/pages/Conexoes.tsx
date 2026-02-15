@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { LogOut, Plus, ExternalLink, Cable } from 'lucide-react';
+import { LogOut, Plus, ExternalLink, Cable, Loader2, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface BlingConnection {
   id: string;
@@ -20,6 +21,8 @@ export default function Conexoes() {
   const navigate = useNavigate();
   const [connections, setConnections] = useState<BlingConnection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -45,14 +48,34 @@ export default function Conexoes() {
     fetchConnections();
   }, [user]);
 
-  const handleConnect = () => {
-    const clientId = import.meta.env.VITE_BLING_CLIENT_ID;
-    const redirectUri = import.meta.env.VITE_BLING_REDIRECT_URI || `${window.location.origin}/bling/callback`;
-    const state = '123456';
-    const scope = 'produtos,pedidos,estoque';
+  const handleConnect = async () => {
+    setConnecting(true);
+    setConnectError(null);
 
-    const url = `https://bling.com.br/Api/v3/oauth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scope}`;
-    window.location.href = url;
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bling-config`,
+        {
+          headers: {
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha ao buscar configuração');
+
+      const { clientId, redirectUri } = data;
+      const state = crypto.randomUUID();
+      sessionStorage.setItem('bling_oauth_state', state);
+
+      const url = `https://bling.com.br/Api/v3/oauth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=produtos,pedidos`;
+      window.location.href = url;
+    } catch (err) {
+      setConnectError(err instanceof Error ? err.message : 'Erro desconhecido ao preparar conexão.');
+      setConnecting(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -132,13 +155,35 @@ export default function Conexoes() {
           </div>
         )}
 
+        {connectError && (
+          <Alert variant="destructive" className="mt-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between">
+              <span>{connectError}</span>
+              <Button variant="outline" size="sm" onClick={handleConnect} className="ml-4">
+                Tentar novamente
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="mt-8">
           <Button
             onClick={handleConnect}
+            disabled={connecting}
             className="bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90 text-[hsl(var(--success-foreground))]"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Conectar nova conta Bling
+            {connecting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Preparando conexão...
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4 mr-2" />
+                Conectar nova conta Bling
+              </>
+            )}
           </Button>
         </div>
       </main>
