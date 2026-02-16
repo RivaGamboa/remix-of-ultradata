@@ -4,6 +4,31 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+const BLING_STATE_KEY = 'bling_oauth_state';
+const BLING_STATE_TS_KEY = 'bling_oauth_state_ts';
+const STATE_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
+
+function validateState(receivedState: string | null): boolean {
+  if (!receivedState) return false;
+
+  const savedState = localStorage.getItem(BLING_STATE_KEY);
+  const savedTs = localStorage.getItem(BLING_STATE_TS_KEY);
+
+  // Clean up immediately (single-use)
+  localStorage.removeItem(BLING_STATE_KEY);
+  localStorage.removeItem(BLING_STATE_TS_KEY);
+
+  if (!savedState || savedState !== receivedState) return false;
+
+  // Check expiry
+  if (savedTs) {
+    const elapsed = Date.now() - Number(savedTs);
+    if (elapsed > STATE_MAX_AGE_MS) return false;
+  }
+
+  return true;
+}
+
 const AuthBlingCallback = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -12,10 +37,24 @@ const AuthBlingCallback = () => {
 
   const processCallback = async () => {
     const code = searchParams.get('code');
+    const state = searchParams.get('state');
+    const error = searchParams.get('error');
+
+    if (error) {
+      setStatus('error');
+      setErrorMsg(searchParams.get('error_description') || error);
+      return;
+    }
 
     if (!code) {
       setStatus('error');
       setErrorMsg('Código de autorização não encontrado.');
+      return;
+    }
+
+    if (!validateState(state)) {
+      setStatus('error');
+      setErrorMsg('Validação de segurança falhou (state inválido ou expirado). Tente conectar novamente.');
       return;
     }
 
@@ -87,7 +126,7 @@ const AuthBlingCallback = () => {
             <h2 className="text-lg font-semibold text-foreground">Erro na autorização</h2>
             <p className="text-sm text-muted-foreground">{errorMsg}</p>
             <div className="flex flex-col gap-2 pt-2">
-              <Button onClick={processCallback} variant="default">
+              <Button onClick={() => navigate('/conexoes')} variant="default">
                 Tentar novamente
               </Button>
               <Button onClick={() => navigate('/conexoes')} variant="ghost">
