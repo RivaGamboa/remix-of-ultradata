@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.bling-config]
 verify_jwt = false
+
+[functions.bling-oauth-callback]
+verify_jwt = false
