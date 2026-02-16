@@ -60,10 +60,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    return { error: result.error || null };
+    const isCustomDomain =
+      !window.location.hostname.includes("lovable.app") &&
+      !window.location.hostname.includes("lovableproject.com");
+
+    if (isCustomDomain) {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/conexoes`,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (error) return { error };
+
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+      return { error: null };
+    } else {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      return { error: result.error || null };
+    }
   };
 
   const signOut = async () => {
