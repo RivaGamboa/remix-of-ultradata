@@ -15,8 +15,19 @@ Deno.serve(async (req) => {
       throw new Error("BLING_CLIENT_ID is not configured");
     }
 
-    const redirectUri = Deno.env.get("BLING_REDIRECT_URI") ||
-      `${req.headers.get("origin") || "https://localhost"}/bling/callback`;
+    // Use origin from request to build redirect URI dynamically
+    const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/$/, "") || "";
+    const fixedRedirectUri = Deno.env.get("BLING_REDIRECT_URI");
+    
+    // If origin matches production domain, use the fixed URI; otherwise build from origin
+    let redirectUri: string;
+    if (fixedRedirectUri && origin.includes("ultradata.app")) {
+      redirectUri = fixedRedirectUri;
+    } else if (origin) {
+      redirectUri = `${origin}/auth/bling/callback`;
+    } else {
+      redirectUri = fixedRedirectUri || "https://ultradata.app/auth/bling/callback";
+    }
 
     return new Response(
       JSON.stringify({ clientId, redirectUri }),
