@@ -169,6 +169,48 @@ export type Database = {
           },
         ]
       }
+      ncm_cache: {
+        Row: {
+          aliquota_ipi: number | null
+          codigo: string
+          created_at: string
+          descricao: string
+          id: string
+          metadata: Json | null
+          ncm_pai: string | null
+          search_vector: unknown
+          tipo: string
+          unidade: string | null
+          updated_at: string
+        }
+        Insert: {
+          aliquota_ipi?: number | null
+          codigo: string
+          created_at?: string
+          descricao: string
+          id?: string
+          metadata?: Json | null
+          ncm_pai?: string | null
+          search_vector?: unknown
+          tipo?: string
+          unidade?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aliquota_ipi?: number | null
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          metadata?: Json | null
+          ncm_pai?: string | null
+          search_vector?: unknown
+          tipo?: string
+          unidade?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       processed_images: {
         Row: {
           created_at: string
@@ -475,7 +517,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      buscar_ncm: {
+        Args: { limite?: number; termo: string }
+        Returns: {
+          codigo: string
+          descricao: string
+          relevancia: number
+          tipo: string
+        }[]
+      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       [_ in never]: never
