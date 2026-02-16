@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.bling-oauth-callback]
 verify_jwt = false
+
+[functions.sync-ncm]
+verify_jwt = false
+
+[functions.buscar-ncm]
+verify_jwt = false

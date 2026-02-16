@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { ProductRow } from '@/pages/UltraData';
+import type { ProductRow } from '@/types/ultradata';
 
 interface UltraDataUploadProps {
   onDataLoaded: (data: ProductRow[], columns: string[], filename?: string) => void;
