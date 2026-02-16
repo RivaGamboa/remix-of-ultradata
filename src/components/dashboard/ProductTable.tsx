@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Settings2, CheckSquare, Square, ChevronDown, ChevronUp } from 'lucide-react';
+import { Settings2, CheckSquare, Square, ChevronDown, ChevronUp, Edit3 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -22,6 +22,7 @@ interface ProductTableProps {
   onSelectAll: () => void;
   onDeselectAll: () => void;
   ncmSuggestions?: Record<string, { codigo: string; descricao: string; relevancia: number }[]>;
+  onCorrectNcm?: (rowIndex: number) => void;
 }
 
 export function ProductTable({
@@ -35,6 +36,7 @@ export function ProductTable({
   onSelectAll,
   onDeselectAll,
   ncmSuggestions,
+  onCorrectNcm,
 }: ProductTableProps) {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -149,42 +151,53 @@ export function ProductTable({
 
                         return (
                           <TableCell key={col}>
-                            <HoverCard openDelay={200}>
-                              <HoverCardTrigger asChild>
-                                <span className={cn(
-                                  "cursor-help border-b border-dashed",
-                                  empty
-                                    ? "text-destructive border-destructive/40"
-                                    : "text-foreground border-muted-foreground/30"
-                                )}>
-                                  {empty ? '⚠️ Vazio' : String(value)}
-                                </span>
-                              </HoverCardTrigger>
-                              <HoverCardContent className="w-80" side="top">
-                                <div className="space-y-2">
-                                  <p className="text-sm font-medium">
-                                    {empty ? '⚠️ NCM não definido' : `NCM: ${value}`}
-                                  </p>
-                                  {suggestions && suggestions.length > 0 ? (
-                                    <>
-                                      <p className="text-xs text-muted-foreground">Sugestões baseadas na descrição:</p>
-                                      {suggestions.slice(0, 3).map((s, i) => (
-                                        <div key={i} className="text-xs p-2 rounded bg-muted">
-                                          <span className="font-mono font-medium">{s.codigo}</span>
-                                          <span className="text-muted-foreground ml-2">{s.descricao}</span>
-                                        </div>
-                                      ))}
-                                    </>
-                                  ) : (
-                                    <p className="text-xs text-muted-foreground">
-                                      {empty
-                                        ? 'Use a busca para encontrar o NCM correto para este produto.'
-                                        : 'Passe o mouse para ver a justificativa do NCM atribuído.'}
+                            <div className="flex items-center gap-1.5">
+                              <HoverCard openDelay={200}>
+                                <HoverCardTrigger asChild>
+                                  <span className={cn(
+                                    "cursor-help border-b border-dashed",
+                                    empty
+                                      ? "text-destructive border-destructive/40"
+                                      : "text-foreground border-muted-foreground/30"
+                                  )}>
+                                    {empty ? '⚠️ Vazio' : String(value)}
+                                  </span>
+                                </HoverCardTrigger>
+                                <HoverCardContent className="w-80" side="top">
+                                  <div className="space-y-2">
+                                    <p className="text-sm font-medium">
+                                      {empty ? '⚠️ NCM não definido' : `NCM: ${value}`}
                                     </p>
-                                  )}
-                                </div>
-                              </HoverCardContent>
-                            </HoverCard>
+                                    {suggestions && suggestions.length > 0 ? (
+                                      <>
+                                        <p className="text-xs text-muted-foreground">Sugestões baseadas na descrição:</p>
+                                        {suggestions.slice(0, 3).map((s, i) => (
+                                          <div key={i} className="text-xs p-2 rounded bg-muted">
+                                            <span className="font-mono font-medium">{s.codigo}</span>
+                                            <span className="text-muted-foreground ml-2">{s.descricao}</span>
+                                          </div>
+                                        ))}
+                                      </>
+                                    ) : (
+                                      <p className="text-xs text-muted-foreground">
+                                        {empty
+                                          ? 'Baseado na descrição do produto e na base SISCOMEX.'
+                                          : 'NCM atribuído conforme base SISCOMEX e descrição do produto.'}
+                                      </p>
+                                    )}
+                                  </div>
+                                </HoverCardContent>
+                              </HoverCard>
+                              {onCorrectNcm && (
+                                <button
+                                  onClick={() => onCorrectNcm(idx)}
+                                  className="p-0.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                                  title="Corrigir NCM"
+                                >
+                                  <Edit3 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </TableCell>
                         );
                       }

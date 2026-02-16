@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Database, User, LogOut, Cable, History, Zap, Download, AlertTriangle } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Database, User, LogOut, Cable, History, Zap, Download, AlertTriangle, Loader2, Edit3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/toaster';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -11,12 +11,15 @@ import { SearchBar } from '@/components/dashboard/SearchBar';
 import { TagFilter } from '@/components/dashboard/TagFilter';
 import { ProductTable, type ProductRow } from '@/components/dashboard/ProductTable';
 import { ColumnConfigModal } from '@/components/dashboard/ColumnConfigModal';
+import { NcmCorrectionModal } from '@/components/dashboard/NcmCorrectionModal';
 import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from 'xlsx';
 
 const UltraData = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const connectionId = searchParams.get('connection');
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Data state
@@ -37,6 +40,14 @@ const UltraData = () => {
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
   const [ncmSynced, setNcmSynced] = useState(false);
 
+  // Bling loading state
+  const [blingLoading, setBlingLoading] = useState(false);
+  const [blingError, setBlingError] = useState<string | null>(null);
+
+  // NCM correction modal
+  const [ncmModalOpen, setNcmModalOpen] = useState(false);
+  const [ncmModalProduct, setNcmModalProduct] = useState<{ name: string; sku: string; ncm: string; rowIndex: number } | null>(null);
+
   // Initialize visible columns from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('ultradata_visible_columns');
@@ -44,7 +55,6 @@ const UltraData = () => {
       const parsed = JSON.parse(saved);
       setVisibleColumns(parsed.filter((c: string) => columns.includes(c)));
     } else if (columns.length > 0) {
-      // Default: show first 8 columns
       setVisibleColumns(columns.slice(0, 8));
     }
   }, [columns]);
@@ -55,6 +65,89 @@ const UltraData = () => {
       localStorage.setItem('ultradata_visible_columns', JSON.stringify(visibleColumns));
     }
   }, [visibleColumns]);
+
+  // Load products from Bling when connectionId is present
+  useEffect(() => {
+    if (!connectionId || !user) return;
+
+    const loadBlingProducts = async () => {
+      setBlingLoading(true);
+      setBlingError(null);
+
+      try {
+        // Fetch all products (paginated)
+        let allProducts: any[] = [];
+        let page = 1;
+        let hasMore = true;
+
+        while (hasMore && page <= 10) {
+          const { data, error } = await supabase.functions.invoke('bling-proxy', {
+            body: {
+              connectionId,
+              endpoint: '/produtos',
+              params: { pagina: String(page), limite: '100' },
+            },
+          });
+
+          if (error) throw new Error(error.message);
+          
+          const products = data?.data || [];
+          if (products.length === 0) {
+            hasMore = false;
+          } else {
+            allProducts = [...allProducts, ...products];
+            page++;
+            if (products.length < 100) hasMore = false;
+          }
+        }
+
+        if (allProducts.length === 0) {
+          setBlingError('Nenhum produto encontrado nesta conta Bling.');
+          return;
+        }
+
+        // Map Bling product fields to table rows
+        const rows: ProductRow[] = allProducts.map((p: any) => ({
+          ID: p.id,
+          Nome: p.nome || '',
+          SKU: p.codigo || '',
+          'Preço': p.preco || 0,
+          'Preço Custo': p.precoCusto || 0,
+          NCM: p.codigoNCM || '',
+          CEST: p.cest || '',
+          Marca: p.marca || '',
+          Categoria: p.categoria?.descricao || '',
+          Tipo: p.tipo || '',
+          Situação: p.situacao || '',
+          Unidade: p.unidade || '',
+          Estoque: p.estoque?.saldoVirtualTotal ?? '',
+          'Peso Bruto': p.pesoBruto || '',
+          'Peso Líquido': p.pesoLiquido || '',
+          GTIN: p.gtin || '',
+          Observações: p.observacoes || '',
+        }));
+
+        const cols = Object.keys(rows[0]);
+        setColumns(cols);
+        setRawData(rows);
+        setFilteredData(rows);
+        setSelectedRows(new Set());
+        setTags([]);
+
+        toast({
+          title: '✅ Produtos carregados do Bling',
+          description: `${rows.length} produtos importados.`,
+        });
+      } catch (err: any) {
+        console.error('Bling load error:', err);
+        setBlingError(err.message || 'Erro ao carregar produtos do Bling.');
+      } finally {
+        setBlingLoading(false);
+      }
+    };
+
+    loadBlingProducts();
+  }, [connectionId, user, toast]);
 
   // Filter data based on tags
   useEffect(() => {
@@ -75,13 +168,12 @@ const UltraData = () => {
       });
     }
 
-    // Filter for empty NCM if NCM tag is present
     if (fieldTags.includes('NCM')) {
       result = result.filter(row => {
         const ncmCol = columns.find(c => /ncm/i.test(c));
         if (!ncmCol) return true;
         const val = row[ncmCol];
-        return !val || String(val).trim() === '' || String(val) === '99.99.9999' || String(val) === '0';
+        return !val || String(val).trim() === '' || String(val) === '99.99.9999' || String(val) === '99999999' || String(val) === '0';
       });
     }
 
@@ -89,7 +181,7 @@ const UltraData = () => {
     setSelectedRows(new Set());
   }, [tags, rawData, columns]);
 
-  // Handle file upload (drag & drop or file picker)
+  // Handle file upload
   const handleFileUpload = useCallback(async (file: File) => {
     try {
       const buffer = await file.arrayBuffer();
@@ -116,7 +208,6 @@ const UltraData = () => {
     }
   }, [toast]);
 
-  // Handle drop zone
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
@@ -133,22 +224,13 @@ const UltraData = () => {
       return;
     }
     setIsSearching(true);
-    // Simple client-side search for now
     setTimeout(() => setIsSearching(false), 300);
   }, [rawData]);
 
   // Tag management
-  const handleTagsExtracted = (newTags: string[]) => {
-    setTags(newTags);
-  };
-
-  const handleRemoveTag = (tag: string) => {
-    setTags(prev => prev.filter(t => t !== tag));
-  };
-
-  const handleClearTags = () => {
-    setTags([]);
-  };
+  const handleTagsExtracted = (newTags: string[]) => setTags(newTags);
+  const handleRemoveTag = (tag: string) => setTags(prev => prev.filter(t => t !== tag));
+  const handleClearTags = () => setTags([]);
 
   // Column config
   const handleToggleColumn = (col: string) => {
@@ -226,6 +308,32 @@ const UltraData = () => {
     }
   };
 
+  // Individual NCM correction
+  const handleOpenNcmModal = (rowIndex: number) => {
+    const row = filteredData[rowIndex];
+    const ncmCol = columns.find(c => /ncm/i.test(c));
+    setNcmModalProduct({
+      name: String(row['Nome'] || row['nome'] || row['Descrição'] || ''),
+      sku: String(row['SKU'] || row['sku'] || row['Código'] || rowIndex),
+      ncm: ncmCol ? String(row[ncmCol] || '') : '',
+      rowIndex,
+    });
+    setNcmModalOpen(true);
+  };
+
+  const handleApplyNcm = (ncm: string, descricao: string) => {
+    if (!ncmModalProduct) return;
+    const ncmCol = columns.find(c => /ncm/i.test(c));
+    if (!ncmCol) return;
+
+    const globalIdx = rawData.indexOf(filteredData[ncmModalProduct.rowIndex]);
+    if (globalIdx >= 0) {
+      rawData[globalIdx][ncmCol] = ncm;
+      setRawData([...rawData]);
+      toast({ title: '✅ NCM aplicado', description: `${ncm} — ${descricao}` });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Toaster />
@@ -239,6 +347,16 @@ const UltraData = () => {
         onSelectAll={() => setVisibleColumns([...columns])}
         onDeselectAll={() => setVisibleColumns([])}
       />
+      {ncmModalProduct && (
+        <NcmCorrectionModal
+          open={ncmModalOpen}
+          onOpenChange={setNcmModalOpen}
+          productName={ncmModalProduct.name}
+          productSku={ncmModalProduct.sku}
+          currentNcm={ncmModalProduct.ncm}
+          onApply={handleApplyNcm}
+        />
+      )}
 
       {/* Header */}
       <header className="bg-card border-b border-border sticky top-0 z-50">
@@ -274,7 +392,7 @@ const UltraData = () => {
       </header>
 
       <main className="max-w-[1400px] mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-4">
-        {/* Search Bar (browser-like) */}
+        {/* Search Bar */}
         <SearchBar
           onSearch={handleSearch}
           onTagsExtracted={handleTagsExtracted}
@@ -283,6 +401,21 @@ const UltraData = () => {
 
         {/* Tag filters */}
         <TagFilter tags={tags} onRemoveTag={handleRemoveTag} onClearAll={handleClearTags} />
+
+        {/* Bling loading state */}
+        {blingLoading && (
+          <div className="flex items-center justify-center py-12 gap-3">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <span className="text-muted-foreground">Carregando produtos do Bling...</span>
+          </div>
+        )}
+
+        {blingError && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{blingError}</AlertDescription>
+          </Alert>
+        )}
 
         {/* Actions bar */}
         {rawData.length > 0 && (
@@ -313,7 +446,7 @@ const UltraData = () => {
         )}
 
         {/* Empty state / Drop zone */}
-        {rawData.length === 0 ? (
+        {!blingLoading && rawData.length === 0 && !blingError ? (
           <div
             onDrop={handleDrop}
             onDragOver={handleDragOver}
@@ -337,7 +470,7 @@ const UltraData = () => {
               Formatos aceitos: .xlsx, .xls, .csv — ou conecte sua conta Bling
             </p>
           </div>
-        ) : (
+        ) : rawData.length > 0 ? (
           <ProductTable
             data={filteredData}
             columns={columns}
@@ -349,8 +482,9 @@ const UltraData = () => {
             onSelectAll={() => setSelectedRows(new Set(filteredData.map((_, i) => i)))}
             onDeselectAll={() => setSelectedRows(new Set())}
             ncmSuggestions={ncmSuggestions}
+            onCorrectNcm={handleOpenNcmModal}
           />
-        )}
+        ) : null}
       </main>
     </div>
   );
