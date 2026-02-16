@@ -74,6 +74,10 @@ export function useBlingAuth() {
   const startAuth = useCallback(async () => {
     const config = await fetchBlingConfig();
     const state = crypto.randomUUID();
+
+    // Persist state in both localStorage (for AuthBlingCallback) and sessionStorage (for legacy BlingCallback)
+    localStorage.setItem('bling_oauth_state', state);
+    localStorage.setItem('bling_oauth_state_ts', String(Date.now()));
     sessionStorage.setItem('bling_oauth_state', state);
     sessionStorage.setItem('bling_redirect_uri', config.redirectUri);
 
