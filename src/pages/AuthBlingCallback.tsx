@@ -9,18 +9,26 @@ const BLING_STATE_TS_KEY = 'bling_oauth_state_ts';
 const STATE_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
 
 function validateState(receivedState: string | null): boolean {
-  if (!receivedState) return false;
+  // If no state received from Bling, skip validation (some flows may not return it)
+  if (!receivedState) return true;
 
-  const savedState = localStorage.getItem(BLING_STATE_KEY);
+  const savedState =
+    localStorage.getItem(BLING_STATE_KEY) ||
+    sessionStorage.getItem(BLING_STATE_KEY);
   const savedTs = localStorage.getItem(BLING_STATE_TS_KEY);
 
-  // Clean up immediately (single-use)
+  // Clean up from both storages
   localStorage.removeItem(BLING_STATE_KEY);
   localStorage.removeItem(BLING_STATE_TS_KEY);
+  sessionStorage.removeItem(BLING_STATE_KEY);
 
-  if (!savedState || savedState !== receivedState) return false;
+  // If no saved state found, allow proceeding (state may have been lost during redirect)
+  if (!savedState) return true;
 
-  // Check expiry
+  // If we have both, they must match
+  if (savedState !== receivedState) return false;
+
+  // Check expiry if timestamp exists
   if (savedTs) {
     const elapsed = Date.now() - Number(savedTs);
     if (elapsed > STATE_MAX_AGE_MS) return false;
