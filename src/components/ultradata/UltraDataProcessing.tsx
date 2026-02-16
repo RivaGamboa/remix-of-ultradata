@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { getAbbreviations } from '@/config';
 import UltraDataImageSearch from './UltraDataImageSearch';
-import type { ProductRow, FieldConfig, ProcessedProduct } from '@/pages/UltraData';
+import type { ProductRow, FieldConfig, ProcessedProduct } from '@/types/ultradata';
 
 interface UltraDataProcessingProps {
   rawData: ProductRow[];

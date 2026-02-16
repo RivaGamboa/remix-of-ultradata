@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import type { SessionData } from '@/hooks/useSessionHistory';
-import type { ProductRow, FieldConfig, ProcessedProduct } from '@/pages/UltraData';
+import type { ProductRow, FieldConfig, ProcessedProduct } from '@/types/ultradata';
 
 interface UltraDataSessionHistoryProps {
   sessions: SessionData[];

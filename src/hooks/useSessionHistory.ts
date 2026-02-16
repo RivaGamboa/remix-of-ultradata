@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { ProductRow, FieldConfig, ProcessedProduct } from '@/pages/UltraData';
+import type { ProductRow, FieldConfig, ProcessedProduct } from '@/types/ultradata';
 
 export interface SessionData {
   id: string;

@@ -27,7 +27,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserAbbreviations } from '@/hooks/useUserAbbreviations';
-import type { ProductRow, FieldConfig } from '@/pages/UltraData';
+import type { ProductRow, FieldConfig } from '@/types/ultradata';
 
 interface UltraDataTextCorrectionProps {
   rawData: ProductRow[];

@@ -1,240 +1,263 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Upload, Settings2, Sparkles, CheckCircle, SpellCheck, BookA, History, Database, User, LogOut, Camera, Zap, Cable } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Database, User, LogOut, Cable, History, Zap, Download, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/toaster';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { useSessionHistory, type SessionData } from '@/hooks/useSessionHistory';
 import { AuthModal } from '@/components/AuthModal';
-import UltraDataUpload from '@/components/ultradata/UltraDataUpload';
-import UltraDataFieldConfig from '@/components/ultradata/UltraDataFieldConfig';
-import UltraDataProcessing from '@/components/ultradata/UltraDataProcessing';
-import UltraDataValidation from '@/components/ultradata/UltraDataValidation';
-import UltraDataTextCorrection from '@/components/ultradata/UltraDataTextCorrection';
-import UltraDataAbbreviations from '@/components/ultradata/UltraDataAbbreviations';
-import UltraDataSessionHistory from '@/components/ultradata/UltraDataSessionHistory';
-import UltraDataImageSearch from '@/components/ultradata/UltraDataImageSearch';
-import UltraDataEnrichmentModal from '@/components/ultradata/UltraDataEnrichmentModal';
-
-export interface ProductRow {
-  [key: string]: string | number | null;
-}
-
-export interface FieldConfig {
-  column: string;
-  action: 'ignore' | 'analyze' | 'fill_empty' | 'use_default';
-  defaultValue?: string;
-  isLocked: boolean;
-}
-
-export interface NcmSugerido {
-  codigo: string;
-  descricao: string;
-  confianca: 'alta' | 'media' | 'baixa';
-  observacao: string;
-}
-
-export interface ProcessedProduct {
-  original: ProductRow;
-  enriched: {
-    nome_padronizado?: string;
-    descricao_enriquecida?: string;
-    categoria_inferida?: string;
-    marca_inferida?: string;
-    origem_inferida?: string;
-    ncm_sugerido?: NcmSugerido;
-  };
-  necessita_revisao: boolean;
-  razao_revisao?: string;
-  validado: boolean;
-  tempo_processamento_ms?: number;
-}
+import { SearchBar } from '@/components/dashboard/SearchBar';
+import { TagFilter } from '@/components/dashboard/TagFilter';
+import { ProductTable, type ProductRow } from '@/components/dashboard/ProductTable';
+import { ColumnConfigModal } from '@/components/dashboard/ColumnConfigModal';
+import { supabase } from '@/integrations/supabase/client';
+import * as XLSX from 'xlsx';
 
 const UltraData = () => {
   const { user, loading: authLoading, signOut } = useAuth();
+  const { toast } = useToast();
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showImageSearch, setShowImageSearch] = useState(false);
-  const [showEnrichmentModal, setShowEnrichmentModal] = useState(false);
-  
-  // Session management
-  const {
-    sessions,
-    loading: sessionsLoading,
-    createSession,
-    updateSession,
-    deleteSession,
-  } = useSessionHistory(user?.id);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [currentFilename, setCurrentFilename] = useState<string>('');
-  
+
   // Data state
   const [rawData, setRawData] = useState<ProductRow[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
-  const [fieldConfigs, setFieldConfigs] = useState<FieldConfig[]>([]);
-  const [processedProducts, setProcessedProducts] = useState<ProcessedProduct[]>([]);
-  
-  // UI state
-  const [activeTab, setActiveTab] = useState('upload-history');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [filteredData, setFilteredData] = useState<ProductRow[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
 
-  // Auto-save session on tab change
-  const handleTabChange = useCallback(async (newTab: string) => {
-    setActiveTab(newTab);
-    
-    if (currentSessionId && user) {
-      await updateSession(currentSessionId, {
-        currentTab: newTab,
-        fieldConfigs,
-        processedProducts,
+  // Table state
+  const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [showColumnConfig, setShowColumnConfig] = useState(false);
+  const [ncmSuggestions, setNcmSuggestions] = useState<Record<string, any>>({});
+
+  // Batch NCM state
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+  const [ncmSynced, setNcmSynced] = useState(false);
+
+  // Initialize visible columns from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('ultradata_visible_columns');
+    if (saved && columns.length > 0) {
+      const parsed = JSON.parse(saved);
+      setVisibleColumns(parsed.filter((c: string) => columns.includes(c)));
+    } else if (columns.length > 0) {
+      // Default: show first 8 columns
+      setVisibleColumns(columns.slice(0, 8));
+    }
+  }, [columns]);
+
+  // Save visible columns
+  useEffect(() => {
+    if (visibleColumns.length > 0) {
+      localStorage.setItem('ultradata_visible_columns', JSON.stringify(visibleColumns));
+    }
+  }, [visibleColumns]);
+
+  // Filter data based on tags
+  useEffect(() => {
+    if (tags.length === 0) {
+      setFilteredData(rawData);
+      return;
+    }
+
+    const fieldTags = tags.filter(t => ['NCM', 'CEST', 'MARCA', 'CATEGORIA', 'SKU', 'PREÇO', 'ESTOQUE'].includes(t.toUpperCase()));
+    const searchTerms = tags.filter(t => !fieldTags.includes(t));
+
+    let result = rawData;
+
+    if (searchTerms.length > 0) {
+      result = result.filter(row => {
+        const rowText = Object.values(row).join(' ').toLowerCase();
+        return searchTerms.every(term => rowText.includes(term.toLowerCase()));
       });
     }
-  }, [currentSessionId, user, fieldConfigs, processedProducts, updateSession]);
 
-  const handleDataLoaded = async (data: ProductRow[], cols: string[], filename?: string) => {
-    setRawData(data);
-    setColumns(cols);
-    setCurrentFilename(filename || 'planilha.xlsx');
-    
-    // Initialize field configs
-    const configs: FieldConfig[] = cols.map(col => {
-      const isLocked = /estoque|preço|preco|custo|price|stock|valor|quantidade/i.test(col);
-      return {
-        column: col,
-        action: isLocked ? 'ignore' : 'analyze',
-        isLocked,
-      };
-    });
-    setFieldConfigs(configs);
-    
-    // Create new session
-    if (user && filename) {
-      const sessionId = await createSession(filename, data, cols);
-      if (sessionId) {
-        setCurrentSessionId(sessionId);
+    // Filter for empty NCM if NCM tag is present
+    if (fieldTags.includes('NCM')) {
+      result = result.filter(row => {
+        const ncmCol = columns.find(c => /ncm/i.test(c));
+        if (!ncmCol) return true;
+        const val = row[ncmCol];
+        return !val || String(val).trim() === '' || String(val) === '99.99.9999' || String(val) === '0';
+      });
+    }
+
+    setFilteredData(result);
+    setSelectedRows(new Set());
+  }, [tags, rawData, columns]);
+
+  // Handle file upload (drag & drop or file picker)
+  const handleFileUpload = useCallback(async (file: File) => {
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json<ProductRow>(worksheet, { defval: '' });
+
+      if (jsonData.length === 0) {
+        toast({ title: 'Arquivo vazio', description: 'A planilha não contém dados.', variant: 'destructive' });
+        return;
       }
+
+      const cols = Object.keys(jsonData[0]);
+      setColumns(cols);
+      setRawData(jsonData);
+      setFilteredData(jsonData);
+      setSelectedRows(new Set());
+      setTags([]);
+
+      toast({ title: '✅ Planilha carregada', description: `${jsonData.length} produtos e ${cols.length} colunas.` });
+    } catch (error) {
+      toast({ title: 'Erro ao ler arquivo', description: 'Verifique se o arquivo é uma planilha válida.', variant: 'destructive' });
     }
-    
-    setActiveTab('config-corrections');
+  }, [toast]);
+
+  // Handle drop zone
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileUpload(file);
+  }, [handleFileUpload]);
+
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+
+  // Search handler
+  const handleSearch = useCallback(async (query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setFilteredData(rawData);
+      return;
+    }
+    setIsSearching(true);
+    // Simple client-side search for now
+    setTimeout(() => setIsSearching(false), 300);
+  }, [rawData]);
+
+  // Tag management
+  const handleTagsExtracted = (newTags: string[]) => {
+    setTags(newTags);
   };
 
-  const handleProcessingComplete = async (products: ProcessedProduct[]) => {
-    setProcessedProducts(products);
-    
-    // Update session with processed products
-    if (currentSessionId) {
-      await updateSession(currentSessionId, {
-        status: 'completed',
-        itemsProcessed: products.length,
-        processedProducts: products,
-      currentTab: 'processing-validation',
+  const handleRemoveTag = (tag: string) => {
+    setTags(prev => prev.filter(t => t !== tag));
+  };
+
+  const handleClearTags = () => {
+    setTags([]);
+  };
+
+  // Column config
+  const handleToggleColumn = (col: string) => {
+    setVisibleColumns(prev =>
+      prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]
+    );
+  };
+
+  // Row selection
+  const handleToggleRow = (index: number) => {
+    setSelectedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
     });
-    }
-    
-    setActiveTab('processing-validation');
   };
 
-  const handleValidationComplete = (validatedProducts: ProcessedProduct[]) => {
-    setProcessedProducts(validatedProducts);
+  // Sync NCM
+  const handleSyncNcm = async () => {
+    if (!user) { setShowAuthModal(true); return; }
+    setIsBatchProcessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-ncm');
+      if (error) throw error;
+      setNcmSynced(true);
+      toast({ title: '✅ NCM sincronizado', description: data.message || 'Base NCM atualizada com sucesso.' });
+    } catch (error: any) {
+      toast({ title: 'Erro ao sincronizar NCM', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsBatchProcessing(false);
+    }
   };
 
-  const handleDataUpdate = (updatedData: ProductRow[]) => {
-    setRawData(updatedData);
-  };
-
-  // Resume session from history
-  const handleResumeSession = (
-    sessionRawData: ProductRow[],
-    sessionColumns: string[],
-    sessionFieldConfigs: FieldConfig[],
-    sessionProcessedProducts: ProcessedProduct[],
-    targetTab: string
-  ) => {
-    setRawData(sessionRawData);
-    setColumns(sessionColumns);
-    
-    if (sessionFieldConfigs.length > 0) {
-      setFieldConfigs(sessionFieldConfigs);
-    } else {
-      // Initialize field configs if not saved
-      const configs: FieldConfig[] = sessionColumns.map(col => {
-        const isLocked = /estoque|preço|preco|custo|price|stock|valor|quantidade/i.test(col);
-        return {
-          column: col,
-          action: isLocked ? 'ignore' : 'analyze',
-          isLocked,
-        };
-      });
-      setFieldConfigs(configs);
+  // Batch NCM correction
+  const handleBatchNcm = async () => {
+    if (!user) { setShowAuthModal(true); return; }
+    if (selectedRows.size === 0) {
+      toast({ title: 'Nenhum produto selecionado', description: 'Selecione os produtos para corrigir.', variant: 'destructive' });
+      return;
     }
-    
-    if (sessionProcessedProducts.length > 0) {
-      setProcessedProducts(sessionProcessedProducts);
-    }
-    
-    setActiveTab(targetTab);
-  };
 
-  const canProceedToProcessing = rawData.length > 0 && fieldConfigs.some(f => f.action !== 'ignore');
-  const canProceedToValidation = processedProducts.length > 0;
+    setIsBatchProcessing(true);
+    try {
+      const selected = Array.from(selectedRows).map(i => filteredData[i]);
+      let corrected = 0;
 
-  // Require auth for processing
-  const requireAuth = () => {
-    if (!user) {
-      setShowAuthModal(true);
-      return false;
+      for (const product of selected) {
+        const name = String(product['Nome'] || product['nome'] || product['Descrição'] || product['descricao'] || '');
+        if (!name) continue;
+
+        const { data, error } = await supabase.functions.invoke('buscar-ncm', {
+          body: { termo: name, limite: 1 },
+        });
+
+        if (!error && data?.resultados?.length > 0) {
+          const ncmCol = columns.find(c => /ncm/i.test(c));
+          if (ncmCol) {
+            const idx = rawData.indexOf(product);
+            if (idx >= 0) {
+              rawData[idx][ncmCol] = data.resultados[0].codigo;
+              corrected++;
+            }
+          }
+        }
+      }
+
+      setRawData([...rawData]);
+      setSelectedRows(new Set());
+      toast({ title: '✅ NCM corrigido em lote', description: `${corrected} de ${selected.length} produtos atualizados.` });
+    } catch (error: any) {
+      toast({ title: 'Erro na correção em lote', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsBatchProcessing(false);
     }
-    return true;
   };
 
   return (
     <div className="min-h-screen bg-background">
       <Toaster />
       <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />
-      <UltraDataImageSearch
-        isOpen={showImageSearch}
-        onClose={() => setShowImageSearch(false)}
+      <ColumnConfigModal
+        open={showColumnConfig}
+        onOpenChange={setShowColumnConfig}
+        allColumns={columns}
+        visibleColumns={visibleColumns}
+        onToggleColumn={handleToggleColumn}
+        onSelectAll={() => setVisibleColumns([...columns])}
+        onDeselectAll={() => setVisibleColumns([])}
       />
-      <UltraDataEnrichmentModal
-        isOpen={showEnrichmentModal}
-        onClose={() => setShowEnrichmentModal(false)}
-        userId={user?.id}
-      />
+
       {/* Header */}
       <header className="bg-card border-b border-border sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Database className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-foreground">UltraData</h1>
-                <p className="text-xs text-muted-foreground hidden sm:block">
-                  Enriquecimento inteligente com DeepSeek AI
-                </p>
-              </div>
-            </div>
-
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-3">
+              <div className="p-1.5 bg-primary/10 rounded-lg">
+                <Database className="h-5 w-5 text-primary" />
+              </div>
+              <h1 className="text-lg font-bold text-foreground">ULTRADATA</h1>
+            </div>
+            <div className="flex items-center gap-2">
               {user ? (
                 <>
-                  <Link to="/profile" className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    <User className="h-4 w-4" />
-                    <span>{user.email}</span>
-                  </Link>
                   <Link to="/conexoes">
-                    <Button variant="outline" size="sm">
-                      <Cable className="h-4 w-4" />
-                      <span className="hidden sm:inline ml-2">Conexões</span>
-                    </Button>
+                    <Button variant="ghost" size="sm"><Cable className="h-4 w-4" /></Button>
                   </Link>
                   <Link to="/history">
-                    <Button variant="outline" size="sm">
-                      <History className="h-4 w-4" />
-                      <span className="hidden sm:inline ml-2">Histórico</span>
-                    </Button>
+                    <Button variant="ghost" size="sm"><History className="h-4 w-4" /></Button>
                   </Link>
                   <Button variant="ghost" size="sm" onClick={() => signOut()}>
                     <LogOut className="h-4 w-4" />
@@ -242,8 +265,7 @@ const UltraData = () => {
                 </>
               ) : (
                 <Button onClick={() => setShowAuthModal(true)} variant="outline" size="sm">
-                  <User className="h-4 w-4 mr-2" />
-                  Entrar
+                  <User className="h-4 w-4 mr-1" /> Entrar
                 </Button>
               )}
             </div>
@@ -251,120 +273,84 @@ const UltraData = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
-        {/* Quick Action Buttons */}
-        <div className="flex flex-wrap gap-3">
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (!requireAuth()) return;
-              setShowImageSearch(true);
-            }}
-            className="gap-2"
-          >
-            <Camera className="h-4 w-4" />
-            Busca de Imagens
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (!requireAuth()) return;
-              setShowEnrichmentModal(true);
-            }}
-            className="gap-2"
-          >
-            <Zap className="h-4 w-4" />
-            Enriquecer Produto
-          </Button>
-        </div>
+      <main className="max-w-[1400px] mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-4">
+        {/* Search Bar (browser-like) */}
+        <SearchBar
+          onSearch={handleSearch}
+          onTagsExtracted={handleTagsExtracted}
+          isLoading={isSearching}
+        />
 
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 h-auto p-1">
-            <TabsTrigger 
-              value="upload-history" 
-              className="flex items-center gap-2 py-3"
+        {/* Tag filters */}
+        <TagFilter tags={tags} onRemoveTag={handleRemoveTag} onClearAll={handleClearTags} />
+
+        {/* Actions bar */}
+        {rawData.length > 0 && (
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button
+              variant="default"
+              size="sm"
+              disabled={selectedRows.size === 0 || isBatchProcessing}
+              onClick={handleBatchNcm}
+              className="gap-1.5"
             >
-              <Upload className="h-4 w-4" />
-              <span className="hidden sm:inline">Upload / Histórico</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="config-corrections" 
-              disabled={rawData.length === 0}
-              className="flex items-center gap-2 py-3"
-            >
-              <Settings2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Config / Correções</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="processing-validation" 
-              disabled={!canProceedToProcessing}
-              className="flex items-center gap-2 py-3"
-            >
-              <Sparkles className="h-4 w-4" />
-              <span className="hidden sm:inline">Processar / Validar</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <div className="bg-card rounded-2xl shadow-elevated border border-border p-6 md:p-8">
-            <TabsContent value="upload-history" className="mt-0 space-y-8">
-              <UltraDataUpload onDataLoaded={handleDataLoaded} />
-              <Separator className="my-6" />
-              <UltraDataSessionHistory
-                sessions={sessions}
-                loading={sessionsLoading}
-                onResumeSession={handleResumeSession}
-                onDeleteSession={deleteSession}
-              />
-            </TabsContent>
-
-            <TabsContent value="config-corrections" className="mt-0 space-y-8">
-              <UltraDataFieldConfig
-                columns={columns}
-                fieldConfigs={fieldConfigs}
-                onConfigChange={setFieldConfigs}
-                sampleData={rawData.slice(0, 5)}
-                onNext={() => {
-                  if (requireAuth()) {
-                    handleTabChange('processing-validation');
-                  }
-                }}
-              />
-              <Separator className="my-6" />
-              <UltraDataAbbreviations />
-              <Separator className="my-6" />
-              <UltraDataTextCorrection
-                rawData={rawData}
-                columns={columns}
-                fieldConfigs={fieldConfigs}
-                onDataUpdate={handleDataUpdate}
-              />
-            </TabsContent>
-
-            <TabsContent value="processing-validation" className="mt-0 space-y-8">
-              <UltraDataProcessing
-                rawData={rawData}
-                fieldConfigs={fieldConfigs}
-                userId={user?.id}
-                isProcessing={isProcessing}
-                setIsProcessing={setIsProcessing}
-                onComplete={handleProcessingComplete}
-                onDataUpdate={handleDataUpdate}
-                sessionId={currentSessionId}
-                onSessionUpdate={updateSession}
-              />
-              {canProceedToValidation && (
-                <>
-                  <Separator className="my-6" />
-                  <UltraDataValidation
-                    processedProducts={processedProducts}
-                    columns={columns}
-                    onValidationChange={handleValidationComplete}
-                  />
-                </>
-              )}
-            </TabsContent>
+              <Zap className="h-4 w-4" />
+              Corrigir NCM em lote ({selectedRows.size})
+            </Button>
+            {!ncmSynced && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSyncNcm}
+                disabled={isBatchProcessing}
+                className="gap-1.5"
+              >
+                <Download className="h-4 w-4" />
+                Sincronizar base NCM
+              </Button>
+            )}
           </div>
-        </Tabs>
+        )}
+
+        {/* Empty state / Drop zone */}
+        {rawData.length === 0 ? (
+          <div
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            className="border-2 border-dashed border-border rounded-2xl p-16 text-center hover:border-primary/50 transition-colors cursor-pointer"
+            onClick={() => {
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = '.xlsx,.xls,.csv';
+              input.onchange = (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0];
+                if (file) handleFileUpload(file);
+              };
+              input.click();
+            }}
+          >
+            <Database className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+            <h2 className="text-lg font-semibold text-foreground mb-2">
+              Arraste uma planilha ou clique para enviar
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Formatos aceitos: .xlsx, .xls, .csv — ou conecte sua conta Bling
+            </p>
+          </div>
+        ) : (
+          <ProductTable
+            data={filteredData}
+            columns={columns}
+            visibleColumns={visibleColumns}
+            onToggleColumn={handleToggleColumn}
+            onShowColumnConfig={() => setShowColumnConfig(true)}
+            selectedRows={selectedRows}
+            onToggleRow={handleToggleRow}
+            onSelectAll={() => setSelectedRows(new Set(filteredData.map((_, i) => i)))}
+            onDeselectAll={() => setSelectedRows(new Set())}
+            ncmSuggestions={ncmSuggestions}
+          />
+        )}
       </main>
     </div>
   );

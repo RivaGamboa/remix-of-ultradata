@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
-import type { ProcessedProduct } from '@/pages/UltraData';
+import type { ProcessedProduct } from '@/types/ultradata';
 
 interface ExportOptions {
   includeOriginalColumns: boolean;

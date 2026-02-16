@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { ConfigPresetManager } from '@/components/ConfigPresetManager';
-import type { FieldConfig, ProductRow } from '@/pages/UltraData';
+import type { FieldConfig, ProductRow } from '@/types/ultradata';
 import type { ColumnConfig } from '@/utils/dataProcessors';
 
 interface UltraDataFieldConfigProps {
