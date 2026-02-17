@@ -32,6 +32,7 @@ export default function BlingDashboard() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
+  const [totalProducts, setTotalProducts] = useState<number | null>(null);
   const [pageLoading, setPageLoading] = useState(false);
 
   // Table state
@@ -135,14 +136,24 @@ export default function BlingDashboard() {
     }
   }, [connectionId, user, columns.length]);
 
-  // Initial load
+  // Initial load — fetch page 1 and total product count in parallel
   useEffect(() => {
     if (!connectionId || !user) return;
     setBlingLoading(true);
     setCurrentPage(1);
     setTags([]);
     setHasNextPage(false);
+    setTotalProducts(null);
     fetchPage(1);
+
+    // Fetch total product count (limite=1 just to get the total field)
+    supabase.functions.invoke('bling-proxy', {
+      body: { connectionId, endpoint: '/produtos', params: { pagina: '1', limite: '1' } },
+    }).then(({ data }) => {
+      if (data?.total != null) {
+        setTotalProducts(data.total);
+      }
+    }).catch(() => {});
   }, [connectionId, user]);
 
   // Page change
@@ -382,7 +393,10 @@ export default function BlingDashboard() {
               </Button>
             )}
             <Badge variant="secondary" className="ml-auto">
-              Página {currentPage} • {filteredData.length} produto{filteredData.length !== 1 ? 's' : ''} na página
+              {totalProducts != null
+                ? `${totalProducts.toLocaleString('pt-BR')} produtos • Página ${currentPage} de ${Math.ceil(totalProducts / PAGE_SIZE)}`
+                : `Página ${currentPage} • ${filteredData.length} produto${filteredData.length !== 1 ? 's' : ''} na página`
+              }
             </Badge>
           </div>
         )}
@@ -437,7 +451,7 @@ export default function BlingDashboard() {
                 Anterior
               </Button>
               <span className="text-sm text-muted-foreground px-3">
-                Página {currentPage}
+                Página {currentPage}{totalProducts != null ? ` de ${Math.ceil(totalProducts / PAGE_SIZE)}` : ''}
               </span>
               <Button
                 variant="outline"
