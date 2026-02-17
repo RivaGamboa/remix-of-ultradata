@@ -81,23 +81,8 @@ Deno.serve(async (req) => {
 
     const tokenData = await res.json();
 
-    // Fetch Bling user info to get account email/name
-    let blingAccountName: string | null = null;
-    try {
-      const userRes = await fetch("https://www.bling.com.br/Api/v3/usuarios", {
-        headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
-          Accept: "application/json",
-        },
-      });
-      if (userRes.ok) {
-        const userData = await userRes.json();
-        const firstUser = userData?.data?.[0];
-        blingAccountName = firstUser?.email || firstUser?.nome || null;
-      }
-    } catch (e) {
-      console.warn("Failed to fetch Bling user info:", e);
-    }
+    // Note: Bling API v3 does not have a /usuarios endpoint.
+    // Account name can be set by the user in the connections UI.
 
     // Save tokens to database
     const supabase = getSupabaseAdmin();
@@ -112,7 +97,6 @@ Deno.serve(async (req) => {
         refresh_token: tokenData.refresh_token,
         expires_at: expiresAt,
         scope: tokenData.scope || null,
-        bling_account_name: blingAccountName,
       },
       { onConflict: "user_id" }
     );
