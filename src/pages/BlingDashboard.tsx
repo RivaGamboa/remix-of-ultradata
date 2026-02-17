@@ -31,7 +31,7 @@ export default function BlingDashboard() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalProducts, setTotalProducts] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(false);
   const [pageLoading, setPageLoading] = useState(false);
 
   // Table state
@@ -93,19 +93,8 @@ export default function BlingDashboard() {
 
       const products = data?.data || [];
 
-      // Try to get total from Bling response headers or estimate
-      // Bling v3 doesn't always return total; we estimate from response
-      if (data?.total != null) {
-        setTotalProducts(data.total);
-      } else if (products.length < PAGE_SIZE && page === 1) {
-        setTotalProducts(products.length);
-      } else if (products.length < PAGE_SIZE) {
-        setTotalProducts((page - 1) * PAGE_SIZE + products.length);
-      }
-      // If full page, we don't know total yet — keep previous or set a high estimate
-      if (products.length === PAGE_SIZE && totalProducts < page * PAGE_SIZE) {
-        setTotalProducts(page * PAGE_SIZE + 1); // at least one more page
-      }
+      // Determine if there's a next page
+      setHasNextPage(products.length === PAGE_SIZE);
 
       const rows: ProductRow[] = products.map((p: any) => ({
         ID: p.id,
@@ -144,7 +133,7 @@ export default function BlingDashboard() {
       setPageLoading(false);
       setBlingLoading(false);
     }
-  }, [connectionId, user, columns.length, totalProducts]);
+  }, [connectionId, user, columns.length]);
 
   // Initial load
   useEffect(() => {
@@ -152,6 +141,7 @@ export default function BlingDashboard() {
     setBlingLoading(true);
     setCurrentPage(1);
     setTags([]);
+    setHasNextPage(false);
     fetchPage(1);
   }, [connectionId, user]);
 
@@ -287,7 +277,7 @@ export default function BlingDashboard() {
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(totalProducts / PAGE_SIZE));
+  // No totalPages needed — we use hasNextPage to control navigation
 
   if (authLoading || !user) {
     return (
@@ -392,7 +382,7 @@ export default function BlingDashboard() {
               </Button>
             )}
             <Badge variant="secondary" className="ml-auto">
-              Página {currentPage} de {totalPages} • {filteredData.length} produto{filteredData.length !== 1 ? 's' : ''} na página
+              Página {currentPage} • {filteredData.length} produto{filteredData.length !== 1 ? 's' : ''} na página
             </Badge>
           </div>
         )}
@@ -447,12 +437,12 @@ export default function BlingDashboard() {
                 Anterior
               </Button>
               <span className="text-sm text-muted-foreground px-3">
-                Página {currentPage} de {totalPages}
+                Página {currentPage}
               </span>
               <Button
                 variant="outline"
                 size="sm"
-                disabled={currentPage >= totalPages || pageLoading}
+                disabled={!hasNextPage || pageLoading}
                 onClick={() => handlePageChange(currentPage + 1)}
               >
                 Próxima
