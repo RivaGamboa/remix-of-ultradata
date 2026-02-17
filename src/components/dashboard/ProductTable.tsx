@@ -206,9 +206,17 @@ export function ProductTable({
                         );
                       }
 
+                      const isLongField = /nome|descri|observa/i.test(col);
                       return (
                         <TableCell key={col}>
-                          <span className="truncate block max-w-[200px] text-sm">
+                          <span
+                            className={cn(
+                              "text-sm",
+                              isLongField
+                                ? "block max-w-[300px] break-words whitespace-normal"
+                                : "truncate block max-w-[200px]"
+                            )}
+                          >
                             {value != null ? String(value) : '—'}
                           </span>
                         </TableCell>
