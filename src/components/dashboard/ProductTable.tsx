@@ -93,8 +93,8 @@ export function ProductTable({
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border bg-card overflow-hidden">
-        <div className="overflow-x-scroll max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+      <div className="rounded-lg border bg-card">
+        <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '600px' }}>
           <Table className="min-w-[1200px]">
             <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10">
               <TableRow>
