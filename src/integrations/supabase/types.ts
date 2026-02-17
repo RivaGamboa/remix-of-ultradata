@@ -53,6 +53,7 @@ export type Database = {
       bling_tokens: {
         Row: {
           access_token: string
+          bling_account_name: string | null
           created_at: string
           expires_at: string
           id: string
@@ -63,6 +64,7 @@ export type Database = {
         }
         Insert: {
           access_token: string
+          bling_account_name?: string | null
           created_at?: string
           expires_at: string
           id?: string
@@ -73,6 +75,7 @@ export type Database = {
         }
         Update: {
           access_token?: string
+          bling_account_name?: string | null
           created_at?: string
           expires_at?: string
           id?: string
