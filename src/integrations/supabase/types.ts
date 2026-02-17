@@ -357,6 +357,36 @@ export type Database = {
         }
         Relationships: []
       }
+      produto_tags: {
+        Row: {
+          connection_id: string
+          created_at: string | null
+          id: string
+          produto_id: string
+          tag: string
+          tipo: string | null
+          user_id: string
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string | null
+          id?: string
+          produto_id: string
+          tag: string
+          tipo?: string | null
+          user_id: string
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string | null
+          id?: string
+          produto_id?: string
+          tag?: string
+          tipo?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       produtos_processados: {
         Row: {
           categoria_inferida: string | null

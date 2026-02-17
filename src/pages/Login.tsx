@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Mail, Lock, Cable } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -131,6 +132,18 @@ export default function Login() {
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Entrando...</> : 'Entrar'}
                 </Button>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline w-full text-center"
+                  onClick={async () => {
+                    if (!email) { toast({ title: 'Informe seu email primeiro', variant: 'destructive' }); return; }
+                    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
+                    if (error) toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+                    else toast({ title: 'Email enviado', description: 'Verifique sua caixa de entrada para redefinir sua senha.' });
+                  }}
+                >
+                  Esqueceu a senha?
+                </button>
               </form>
             </TabsContent>
 

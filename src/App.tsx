@@ -13,6 +13,8 @@ import BlingCallback from "./pages/BlingCallback";
 import AuthBlingCallback from "./pages/AuthBlingCallback";
 import Conexoes from "./pages/Conexoes";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
+import BlingDashboard from "./pages/BlingDashboard";
 
 const queryClient = new QueryClient();
 
@@ -27,11 +29,12 @@ const App = () => (
             <Route path="/" element={<Login />} />
             <Route path="/conexoes" element={<Conexoes />} />
             <Route path="/ultradata" element={<UltraData />} />
+            <Route path="/dashboard/:connectionId" element={<BlingDashboard />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/history" element={<History />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/bling/callback" element={<BlingCallback />} />
             <Route path="/auth/bling/callback" element={<AuthBlingCallback />} />
-            <Route path="/dashboard-em-breve" element={<NotFound />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
