@@ -77,7 +77,7 @@ export default function BlingDashboard() {
   }, [visibleColumns]);
 
   // Fetch a page of products from Bling, optionally also fetching total count
-  const fetchPage = useCallback(async (page: number, fetchTotal = false) => {
+  const fetchPage = useCallback(async (page: number) => {
     if (!connectionId || !user) return;
     setPageLoading(true);
     setBlingError(null);
@@ -94,19 +94,9 @@ export default function BlingDashboard() {
 
       const products = data?.data || [];
 
-      // If Bling returns a total field, use it directly
+      // Bling v3 returns { data: [...], total: N } — capture total on first load
       if (data?.total != null) {
         setTotalProducts(data.total);
-      } else if (fetchTotal) {
-        // Fetch total with a small delay to respect rate limits
-        setTimeout(async () => {
-          try {
-            const { data: countData } = await supabase.functions.invoke('bling-proxy', {
-              body: { connectionId, endpoint: '/produtos', params: { pagina: '1', limite: '1' } },
-            });
-            if (countData?.total != null) setTotalProducts(countData.total);
-          } catch {}
-        }, 500);
       }
 
       setHasNextPage(products.length === PAGE_SIZE);
@@ -158,7 +148,7 @@ export default function BlingDashboard() {
     setTags([]);
     setHasNextPage(false);
     setTotalProducts(null);
-    fetchPage(1, true);
+    fetchPage(1);
   }, [connectionId, user]);
 
   // Page change
