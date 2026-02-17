@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { LogOut, Plus, ExternalLink, Cable, Loader2, AlertCircle, Package } from 'lucide-react';
+import { LogOut, Plus, ExternalLink, Cable, Loader2, AlertCircle, Pencil, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -15,7 +16,6 @@ interface BlingConnection {
   bling_account_name: string | null;
   created_at: string;
   expires_at: string;
-  email?: string;
   totalProducts?: number;
 }
 
@@ -27,6 +27,8 @@ export default function Conexoes() {
   const [connecting, setConnecting] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [enriching, setEnriching] = useState<Set<string>>(new Set());
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/');
@@ -44,7 +46,7 @@ export default function Conexoes() {
       if (!error && tokenData) {
         const conns: BlingConnection[] = tokenData.map(t => ({
           id: t.id,
-          bling_account_name: (t as any).bling_account_name || null,
+          bling_account_name: t.bling_account_name || null,
           created_at: t.created_at,
           expires_at: t.expires_at,
         }));
@@ -64,7 +66,6 @@ export default function Conexoes() {
   const enrichConnection = async (connectionId: string) => {
     setEnriching(prev => new Set(prev).add(connectionId));
     try {
-      // Fetch product count only (the /usuarios endpoint is not available in Bling API v3)
       const { data: prodData } = await supabase.functions.invoke('bling-proxy', {
         body: { connectionId, endpoint: '/produtos', params: { pagina: '1', limite: '1' } },
       });
@@ -84,6 +85,28 @@ export default function Conexoes() {
         return next;
       });
     }
+  };
+
+  const handleStartEdit = (conn: BlingConnection) => {
+    setEditingId(conn.id);
+    setEditName(conn.bling_account_name || '');
+  };
+
+  const handleSaveName = async (connectionId: string) => {
+    const trimmed = editName.trim();
+    if (!trimmed) return;
+
+    await supabase.from('bling_tokens').update({ bling_account_name: trimmed }).eq('id', connectionId);
+
+    setConnections(prev => prev.map(c =>
+      c.id === connectionId ? { ...c, bling_account_name: trimmed } : c
+    ));
+    setEditingId(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditName('');
   };
 
   const handleConnect = async () => {
@@ -178,20 +201,53 @@ export default function Conexoes() {
                 <CardContent className="flex items-center justify-between py-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <p className="font-medium text-foreground">
-                        {conn.bling_account_name || 'Conta Bling'}
-                        {conn.totalProducts != null && (
-                          <span className="text-muted-foreground font-normal"> • {conn.totalProducts.toLocaleString('pt-BR')} produtos</span>
-                        )}
-                      </p>
+                      {editingId === conn.id ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            value={editName}
+                            onChange={e => setEditName(e.target.value)}
+                            placeholder="Nome da conta (ex: vendas@empresa.com)"
+                            className="h-8 w-64 text-sm"
+                            autoFocus
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') handleSaveName(conn.id);
+                              if (e.key === 'Escape') handleCancelEdit();
+                            }}
+                          />
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleSaveName(conn.id)}>
+                            <Check className="h-4 w-4 text-green-600" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCancelEdit}>
+                            <X className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="font-medium text-foreground">
+                            {conn.bling_account_name || 'Conta Bling (clique para nomear)'}
+                          </p>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => handleStartEdit(conn)}
+                            title="Renomear conta"
+                          >
+                            <Pencil className="h-3 w-3 text-muted-foreground" />
+                          </Button>
+                        </>
+                      )}
                       {enriching.has(conn.id) && (
                         <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                       )}
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm text-muted-foreground flex items-center gap-2">
                       <span>
                         Conectada em {format(new Date(conn.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                       </span>
+                      {conn.totalProducts != null && (
+                        <span>• {conn.totalProducts.toLocaleString('pt-BR')} produtos</span>
+                      )}
                     </div>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => navigate(`/dashboard/${conn.id}`)}>
