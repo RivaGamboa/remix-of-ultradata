@@ -50,11 +50,9 @@ export default function Conexoes() {
         }));
         setConnections(conns);
 
-        // Enrich connections that don't have a stored account name
+        // Enrich connections with product count
         for (const conn of conns) {
-          if (!conn.bling_account_name) {
-            enrichConnection(conn.id);
-          }
+          enrichConnection(conn.id);
         }
       }
       setLoading(false);
@@ -66,18 +64,7 @@ export default function Conexoes() {
   const enrichConnection = async (connectionId: string) => {
     setEnriching(prev => new Set(prev).add(connectionId));
     try {
-      // Fetch Bling user info
-      const { data: userData } = await supabase.functions.invoke('bling-proxy', {
-        body: { connectionId, endpoint: '/usuarios', method: 'GET' },
-      });
-      const email = userData?.data?.[0]?.email || userData?.data?.[0]?.nome || null;
-
-      if (email) {
-        // Persist to DB so we don't need to fetch again
-        await supabase.from('bling_tokens').update({ bling_account_name: email } as any).eq('id', connectionId);
-      }
-
-      // Fetch product count
+      // Fetch product count only (the /usuarios endpoint is not available in Bling API v3)
       const { data: prodData } = await supabase.functions.invoke('bling-proxy', {
         body: { connectionId, endpoint: '/produtos', params: { pagina: '1', limite: '1' } },
       });
@@ -85,7 +72,7 @@ export default function Conexoes() {
 
       setConnections(prev => prev.map(c =>
         c.id === connectionId
-          ? { ...c, bling_account_name: email || c.bling_account_name, totalProducts: totalProducts ?? undefined }
+          ? { ...c, totalProducts: totalProducts ?? undefined }
           : c
       ));
     } catch {
