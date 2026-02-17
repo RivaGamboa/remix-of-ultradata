@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
-import { Settings2, CheckSquare, Square, ChevronDown, ChevronUp, Edit3 } from 'lucide-react';
+import { Settings2, CheckSquare, Square, ChevronDown, ChevronUp, Edit3, MoreVertical, Tags, EyeOff } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -23,6 +24,7 @@ interface ProductTableProps {
   onDeselectAll: () => void;
   ncmSuggestions?: Record<string, { codigo: string; descricao: string; relevancia: number }[]>;
   onCorrectNcm?: (rowIndex: number) => void;
+  onViewCanonicalTags?: (productId: string, productName: string) => void;
 }
 
 export function ProductTable({
@@ -37,6 +39,7 @@ export function ProductTable({
   onDeselectAll,
   ncmSuggestions,
   onCorrectNcm,
+  onViewCanonicalTags,
 }: ProductTableProps) {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -118,12 +121,13 @@ export function ProductTable({
                     </div>
                   </TableHead>
                 ))}
+                <TableHead className="w-10 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sortedData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={visibleColumns.length + 2} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={visibleColumns.length + 3} className="text-center py-12 text-muted-foreground">
                     Nenhum produto encontrado
                   </TableCell>
                 </TableRow>
@@ -210,6 +214,36 @@ export function ProductTable({
                         </TableCell>
                       );
                     })}
+                    {/* Actions menu */}
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => onCorrectNcm?.(idx)}>
+                            <Edit3 className="h-4 w-4 mr-2" />
+                            Editar NCM
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const id = String(row['ID'] || row['id'] || idx);
+                              const name = String(row['Nome'] || row['nome'] || '');
+                              onViewCanonicalTags?.(id, name);
+                            }}
+                          >
+                            <Tags className="h-4 w-4 mr-2" />
+                            Ver tags canônicas
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-muted-foreground">
+                            <EyeOff className="h-4 w-4 mr-2" />
+                            Ignorar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
