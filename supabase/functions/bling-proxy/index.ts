@@ -61,26 +61,34 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = getSupabaseAdmin();
-
-    // Auth
+    // Auth via getClaims (ES256-compatible, required for Lovable Cloud)
     const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", "")
+    const token = authHeader.replace("Bearer ", "");
+
+    // Use anon key client to validate the user JWT
+    const supabaseUser = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
     );
-    if (authError || !user) {
+
+    const { data: claimsData, error: claimsError } = await supabaseUser.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const userId = claimsData.claims.sub;
+    const supabase = getSupabaseAdmin();
 
     const { connectionId, endpoint, method = "GET", body: reqBody, params } = await req.json();
 
@@ -99,7 +107,7 @@ Deno.serve(async (req) => {
       .from("bling_tokens")
       .select("*")
       .eq("id", connectionId)
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .maybeSingle();
 
     if (tokenData) {
@@ -109,7 +117,7 @@ Deno.serve(async (req) => {
         .from("bling_connections")
         .select("*")
         .eq("id", connectionId)
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .maybeSingle();
       conn = connData;
       connError = connErr;
