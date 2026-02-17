@@ -387,12 +387,27 @@ export default function BlingDashboard() {
                 Sincronizar base NCM
               </Button>
             )}
-            <Badge variant="secondary" className="ml-auto">
-              {totalProducts != null
-                ? `${totalProducts.toLocaleString('pt-BR')} produtos • Página ${currentPage} de ${Math.ceil(totalProducts / PAGE_SIZE)}`
-                : `Página ${currentPage} • ${filteredData.length} produto${filteredData.length !== 1 ? 's' : ''} na página`
-              }
-            </Badge>
+            <div className="ml-auto flex items-center gap-2">
+              {totalProducts != null ? (
+                <>
+                  <Badge variant="outline" className="gap-1 text-xs font-medium">
+                    <span className="text-muted-foreground">Total:</span>
+                    <span className="font-semibold text-foreground">{totalProducts.toLocaleString('pt-BR')} produtos</span>
+                  </Badge>
+                  <Badge variant="secondary" className="gap-1 text-xs font-semibold tabular-nums">
+                    Página {currentPage} de {Math.ceil(totalProducts / PAGE_SIZE)}
+                  </Badge>
+                </>
+              ) : (
+                <Badge variant="secondary" className="gap-1 text-xs font-medium tabular-nums">
+                  {pageLoading ? (
+                    <><Loader2 className="h-3 w-3 animate-spin" /> Carregando...</>
+                  ) : (
+                    `Página ${currentPage} • ${filteredData.length} na página`
+                  )}
+                </Badge>
+              )}
+            </div>
           </div>
         )}
 
@@ -445,9 +460,46 @@ export default function BlingDashboard() {
               >
                 Anterior
               </Button>
-              <span className="text-sm text-muted-foreground px-3">
-                Página {currentPage}{totalProducts != null ? ` de ${Math.ceil(totalProducts / PAGE_SIZE)}` : ''}
-              </span>
+
+              {/* Page number badges */}
+              <div className="flex items-center gap-1">
+                {totalProducts != null ? (() => {
+                  const totalPages = Math.ceil(totalProducts / PAGE_SIZE);
+                  const pages: (number | '...')[] = [];
+                  if (totalPages <= 7) {
+                    for (let i = 1; i <= totalPages; i++) pages.push(i);
+                  } else {
+                    pages.push(1);
+                    if (currentPage > 3) pages.push('...');
+                    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
+                    if (currentPage < totalPages - 2) pages.push('...');
+                    pages.push(totalPages);
+                  }
+                  return pages.map((p, i) =>
+                    p === '...' ? (
+                      <span key={`ellipsis-${i}`} className="text-xs text-muted-foreground px-1">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => p !== currentPage && handlePageChange(p as number)}
+                        disabled={pageLoading}
+                        className={`w-8 h-8 rounded text-xs font-medium transition-colors ${
+                          p === currentPage
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  );
+                })() : (
+                  <span className="text-sm text-muted-foreground px-3 tabular-nums">
+                    Página {currentPage}
+                  </span>
+                )}
+              </div>
+
               <Button
                 variant="outline"
                 size="sm"
