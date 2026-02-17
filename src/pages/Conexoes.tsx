@@ -187,21 +187,18 @@ export default function Conexoes() {
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-foreground">
                         {conn.email || conn.bling_account_name || 'Conta Bling'}
+                        {conn.totalProducts != null && (
+                          <span className="text-muted-foreground font-normal"> • {conn.totalProducts.toLocaleString('pt-BR')} produtos</span>
+                        )}
                       </p>
                       {enriching.has(conn.id) && (
                         <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <div className="text-sm text-muted-foreground">
                       <span>
                         Conectada em {format(new Date(conn.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                       </span>
-                      {conn.totalProducts != null && (
-                        <span className="flex items-center gap-1">
-                          <Package className="h-3.5 w-3.5" />
-                          {conn.totalProducts.toLocaleString('pt-BR')} produtos
-                        </span>
-                      )}
                     </div>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => navigate(`/dashboard/${conn.id}`)}>
