@@ -151,7 +151,7 @@ export default function Conexoes() {
                       Conectada em {format(new Date(conn.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                     </p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/ultradata?connection=${conn.id}`)}>
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/dashboard/${conn.id}`)}>
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Acessar
                   </Button>
