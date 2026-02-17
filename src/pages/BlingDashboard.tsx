@@ -76,8 +76,8 @@ export default function BlingDashboard() {
     }
   }, [visibleColumns]);
 
-  // Fetch a page of products from Bling
-  const fetchPage = useCallback(async (page: number) => {
+  // Fetch a page of products from Bling, optionally also fetching total count
+  const fetchPage = useCallback(async (page: number, fetchTotal = false) => {
     if (!connectionId || !user) return;
     setPageLoading(true);
     setBlingError(null);
@@ -94,7 +94,21 @@ export default function BlingDashboard() {
 
       const products = data?.data || [];
 
-      // Determine if there's a next page
+      // If Bling returns a total field, use it directly
+      if (data?.total != null) {
+        setTotalProducts(data.total);
+      } else if (fetchTotal) {
+        // Fetch total with a small delay to respect rate limits
+        setTimeout(async () => {
+          try {
+            const { data: countData } = await supabase.functions.invoke('bling-proxy', {
+              body: { connectionId, endpoint: '/produtos', params: { pagina: '1', limite: '1' } },
+            });
+            if (countData?.total != null) setTotalProducts(countData.total);
+          } catch {}
+        }, 500);
+      }
+
       setHasNextPage(products.length === PAGE_SIZE);
 
       const rows: ProductRow[] = products.map((p: any) => ({
@@ -136,7 +150,7 @@ export default function BlingDashboard() {
     }
   }, [connectionId, user, columns.length]);
 
-  // Initial load — fetch page 1 and total product count in parallel
+  // Initial load — single request, total fetched sequentially with delay
   useEffect(() => {
     if (!connectionId || !user) return;
     setBlingLoading(true);
@@ -144,16 +158,7 @@ export default function BlingDashboard() {
     setTags([]);
     setHasNextPage(false);
     setTotalProducts(null);
-    fetchPage(1);
-
-    // Fetch total product count (limite=1 just to get the total field)
-    supabase.functions.invoke('bling-proxy', {
-      body: { connectionId, endpoint: '/produtos', params: { pagina: '1', limite: '1' } },
-    }).then(({ data }) => {
-      if (data?.total != null) {
-        setTotalProducts(data.total);
-      }
-    }).catch(() => {});
+    fetchPage(1, true);
   }, [connectionId, user]);
 
   // Page change
