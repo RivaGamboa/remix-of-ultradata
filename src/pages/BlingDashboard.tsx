@@ -393,6 +393,9 @@ export default function BlingDashboard() {
             onDeselectAll={() => setSelectedRows(new Set())}
             ncmSuggestions={ncmSuggestions}
             onCorrectNcm={handleOpenNcmModal}
+            onViewCanonicalTags={(productId, productName) =>
+              setCanonicalTagsModal({ open: true, productId, productName })
+            }
           />
         ) : null}
       </main>
