@@ -38,21 +38,23 @@ export default function Conexoes() {
     const fetchConnections = async () => {
       const { data: tokenData, error } = await supabase
         .from('bling_tokens')
-        .select('id, created_at, expires_at, scope')
+        .select('id, created_at, expires_at, scope, bling_account_name')
         .order('created_at', { ascending: false });
 
       if (!error && tokenData) {
         const conns: BlingConnection[] = tokenData.map(t => ({
           id: t.id,
-          bling_account_name: null,
+          bling_account_name: (t as any).bling_account_name || null,
           created_at: t.created_at,
           expires_at: t.expires_at,
         }));
         setConnections(conns);
 
-        // Enrich each connection with user info and product count
+        // Enrich connections that don't have a stored account name
         for (const conn of conns) {
-          enrichConnection(conn.id);
+          if (!conn.bling_account_name) {
+            enrichConnection(conn.id);
+          }
         }
       }
       setLoading(false);
@@ -70,16 +72,20 @@ export default function Conexoes() {
       });
       const email = userData?.data?.[0]?.email || userData?.data?.[0]?.nome || null;
 
-      // Fetch product count (limite=1 to just get total)
+      if (email) {
+        // Persist to DB so we don't need to fetch again
+        await supabase.from('bling_tokens').update({ bling_account_name: email } as any).eq('id', connectionId);
+      }
+
+      // Fetch product count
       const { data: prodData } = await supabase.functions.invoke('bling-proxy', {
         body: { connectionId, endpoint: '/produtos', params: { pagina: '1', limite: '1' } },
       });
-      // Bling API may not return a total field directly; check for it
-      const totalProducts = prodData?.total ?? prodData?.data?.length ?? null;
+      const totalProducts = prodData?.total ?? null;
 
       setConnections(prev => prev.map(c =>
         c.id === connectionId
-          ? { ...c, email: email || undefined, totalProducts: totalProducts ?? undefined }
+          ? { ...c, bling_account_name: email || c.bling_account_name, totalProducts: totalProducts ?? undefined }
           : c
       ));
     } catch {
@@ -186,7 +192,7 @@ export default function Conexoes() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-foreground">
-                        {conn.email || conn.bling_account_name || 'Conta Bling'}
+                        {conn.bling_account_name || 'Conta Bling'}
                         {conn.totalProducts != null && (
                           <span className="text-muted-foreground font-normal"> • {conn.totalProducts.toLocaleString('pt-BR')} produtos</span>
                         )}

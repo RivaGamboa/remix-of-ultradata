@@ -1,0 +1,1 @@
+ALTER TABLE public.bling_tokens ADD COLUMN IF NOT EXISTS bling_account_name text DEFAULT null;
