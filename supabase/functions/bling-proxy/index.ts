@@ -39,6 +39,13 @@ async function refreshToken(supabase: any, connection: any) {
   const tokenData = await res.json();
   const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
 
+  // Update in both tables (token may be in either)
+  await supabase.from("bling_tokens").update({
+    access_token: tokenData.access_token,
+    refresh_token: tokenData.refresh_token,
+    expires_at: expiresAt,
+  }).eq("id", connection.id);
+
   await supabase.from("bling_connections").update({
     access_token: tokenData.access_token,
     refresh_token: tokenData.refresh_token,
@@ -84,13 +91,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get connection
-    const { data: conn, error: connError } = await supabase
-      .from("bling_connections")
+    // Get connection — try bling_tokens first (where OAuth callback saves), fallback to bling_connections
+    let conn: any = null;
+    let connError: any = null;
+
+    const { data: tokenData, error: tokenError } = await supabase
+      .from("bling_tokens")
       .select("*")
       .eq("id", connectionId)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
+
+    if (tokenData) {
+      conn = tokenData;
+    } else {
+      const { data: connData, error: connErr } = await supabase
+        .from("bling_connections")
+        .select("*")
+        .eq("id", connectionId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      conn = connData;
+      connError = connErr;
+    }
 
     if (connError || !conn) {
       return new Response(JSON.stringify({ error: "Conexão não encontrada" }), {
