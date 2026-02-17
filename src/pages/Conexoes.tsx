@@ -34,13 +34,19 @@ export default function Conexoes() {
     if (!user) return;
 
     const fetchConnections = async () => {
-      const { data, error } = await supabase
-        .from('bling_connections')
-        .select('id, bling_account_name, created_at, expires_at')
+      // Read from bling_tokens (where OAuth callback saves) and map to expected shape
+      const { data: tokenData, error } = await supabase
+        .from('bling_tokens')
+        .select('id, created_at, expires_at, scope')
         .order('created_at', { ascending: false });
 
-      if (!error && data) {
-        setConnections(data);
+      if (!error && tokenData) {
+        setConnections(tokenData.map(t => ({
+          id: t.id,
+          bling_account_name: null,
+          created_at: t.created_at,
+          expires_at: t.expires_at,
+        })));
       }
       setLoading(false);
     };
