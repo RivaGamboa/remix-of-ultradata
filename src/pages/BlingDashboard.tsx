@@ -92,14 +92,19 @@ export default function BlingDashboard() {
       });
       if (error) throw new Error(error.message);
 
+      // Log full response structure so we can see what Bling actually returns
+      console.log('[bling-proxy] raw response:', JSON.stringify(data).slice(0, 500));
+
       const products = data?.data || [];
 
-      // Bling v3 returns { data: [...], total: N } — capture total on first load
-      if (data?.total != null) {
-        setTotalProducts(data.total);
+      // Bling v3 may return total in multiple fields — check all possibilities
+      const total = data?.total ?? data?.meta?.total ?? data?.paginacao?.total ?? null;
+      if (total != null) {
+        setTotalProducts(Number(total));
       }
 
-      setHasNextPage(products.length === PAGE_SIZE);
+      const hasMore = products.length === PAGE_SIZE;
+      setHasNextPage(hasMore);
 
       const rows: ProductRow[] = products.map((p: any) => ({
         ID: p.id,
