@@ -140,7 +140,7 @@ export default function BlingDashboard() {
     }
   }, [connectionId, user, columns.length]);
 
-  // Initial load — single request, total fetched sequentially with delay
+  // Initial load — single request; total comes from the product list response (data.total)
   useEffect(() => {
     if (!connectionId || !user) return;
     setBlingLoading(true);
